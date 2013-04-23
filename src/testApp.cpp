@@ -15,11 +15,15 @@ void testApp::setup() {
 	ofSetFrameRate(60);
 	kinect.setCameraTiltAngle(0);
 	
+	contourFinder.setMinAreaRadius(10);
+	contourFinder.setMaxAreaRadius(200);
+	
 	gotKinectFrame = false;
+	showMask = true;
 	
 	readFrames("out12.mov");
 	
-	showMask = false;
+	pointZ = 0;
 }
 
 void testApp::update() {
@@ -27,19 +31,32 @@ void testApp::update() {
 	if (kinect.isFrameNew()) {
 		maskOfp.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
 		maskOfp.resize(frameWidth, frameHeight);
-		tempPixels = maskOfp.getPixels();
-		
-		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			maskPixelsDetail[i] = tempPixels[i] * 255 > maskPixelsDetail[i] ? tempPixels[i] * 255 : max(0, maskPixelsDetail[i] - 64);
-			maskPixels[i] = maskPixelsDetail[i] / 255;
-		}
-		
-		maskOfp.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
 		blur(maskOfp, maskOfp, 50);
 		tempPixels = maskOfp.getPixels();
 		
-		for (int j = 0; j < frameWidth * frameHeight; j++) {
-			maskPixels[j] = tempPixels[j];
+		for (int i = 0; i < frameWidth * frameHeight; i++) {
+			maskPixels[i] = tempPixels[i];
+		}
+				
+		normalize(maskOfp, maskOfp);
+		threshold(maskOfp, maskOfp, 250);
+		contourFinder.findContours(maskOfp);
+		
+		if (contourFinder.size() > 0) {
+			Point2f p = contourFinder.getCentroid(0);
+			pointX = (int)p.x;
+			pointY = (int)p.y;
+			int v = maskPixels[(int)(pointY * frameWidth + pointX)];
+			pointZ = v < pointZ ? min(v, pointZ + 5) : max(v, pointZ - 5);
+			
+			for (int x = 0; x < frameWidth; x++) {
+				for (int y = 0; y < frameHeight; y++) {
+					int dx = p.x - x;
+					int dy = p.y - y;
+					int d = sqrt(dx * dx  +  dy * dy);
+					maskPixels[y * frameWidth + x] = max(0, min(255, pointZ - d/2));
+				}
+			}
 		}
 		
 		gotKinectFrame = true;
@@ -52,8 +69,7 @@ void testApp::draw() {
 	if (frameWidth > 0) {
 		ofSetColor(255, 255, 255);
 		
-		if (gotKinectFrame) {
-			for (int x = 0; x < frameWidth; x++) {
+		if (gotKinectFrame) {			for (int x = 0; x < frameWidth; x++) {
 				for (int y = 0; y < frameHeight; y++) {
 					int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
 					frameIndex = max(0, min(frameCount-1, frameIndex));
@@ -64,7 +80,7 @@ void testApp::draw() {
 						distortedPixels[pixelIndex] = frame[pixelIndex];
 					}
 				}
-			 }
+			}
 			
 			gotKinectFrame = false;
 		}

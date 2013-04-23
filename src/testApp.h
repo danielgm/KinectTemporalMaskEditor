@@ -32,14 +32,18 @@ public:
 	
 	ofVideoPlayer player;
 	ofxKinect kinect;
+	ofxCv::ContourFinder contourFinder;
 	
-	unsigned char* tempPixels;
+	int pointX;
+	int pointY;
+	int pointZ;
 	
 	vector<unsigned char*> frames;
 	ofImage frame;
 	bool gotKinectFrame;
 	
 	unsigned char* maskPixels;
+	unsigned char* tempPixels;
 	unsigned short int* maskPixelsDetail;
 	ofPixels maskOfp;
 	ofImage mask;
