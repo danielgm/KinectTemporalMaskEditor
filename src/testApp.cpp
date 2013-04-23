@@ -6,6 +6,8 @@ using namespace cv;
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
 	
+	readFrames("cheetah-s.mov");
+	
 	// enable depth->video image calibration
 	kinect.setRegistration(true);
     
@@ -16,8 +18,6 @@ void testApp::setup() {
 	kinect.setCameraTiltAngle(0);
 	
 	gotKinectFrame = false;
-	
-	readFrames("out12.mov");
 	
 	showMask = true;
 }
@@ -30,8 +30,8 @@ void testApp::update() {
 		tempPixels = maskOfp.getPixels();
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			// Threshold at 128, then normalize.
-			int tempPixel = (max(128, (int)tempPixels[i]) - 128) * 255 * 2;
+			// Normalize between 128 and 192. Multiply by another 255 for the higher-res maskPixelsDetail[].
+			int tempPixel = (max(128, min(192, (int)tempPixels[i])) - 128) * 255 / (192 - 128) * 255;
 			
 			// Take the brighter pixel and fade back to black slowly.
 			maskPixelsDetail[i] = tempPixel > maskPixelsDetail[i] ? tempPixel : max(0, maskPixelsDetail[i] - 128);
@@ -98,7 +98,7 @@ void testApp::readFrames(string filename) {
 	player.play();
 	player.setPaused(true);
 	
-	frameCount = 20; //player.getTotalNumFrames();
+	frameCount = player.getTotalNumFrames();
 	frameWidth = player.width;
 	frameHeight = player.height;
 	
