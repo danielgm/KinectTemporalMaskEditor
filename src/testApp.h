@@ -33,13 +33,15 @@ public:
 	ofVideoPlayer player;
 	ofxKinect kinect;
 	
+	unsigned char* tempPixels;
+	
 	vector<unsigned char*> frames;
 	ofImage frame;
 	bool gotKinectFrame;
 	
-	ofPixels maskOfPixels;
 	unsigned char* maskPixels;
 	unsigned short int* maskPixelsDetail;
+	ofPixels maskOfp;
 	ofImage mask;
 	
 	unsigned char* distortedPixels;
@@ -48,4 +50,6 @@ public:
 	int frameCount;
 	int frameWidth;
 	int frameHeight;
+	
+	bool showMask;
 };

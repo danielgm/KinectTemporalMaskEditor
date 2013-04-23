@@ -18,24 +18,31 @@ void testApp::setup() {
 	gotKinectFrame = false;
 	
 	readFrames("out12.mov");
+	
+	showMask = false;
 }
 
 void testApp::update() {
 	kinect.update();
-	if(kinect.isFrameNew()) {
-		maskOfPixels.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-		if (maskOfPixels.isAllocated()) {
-			maskOfPixels.resize(frameWidth, frameHeight);
-			blur(maskOfPixels, 100);
-			maskPixels = maskOfPixels.getPixels();
-			
-			// Make sure mask values are within the expected range.
-			for (int i = 0; i < frameWidth * frameHeight; i++) {
-				maskPixels[i] = MIN(maskPixels[i], 255);
-				maskPixelsDetail[i] = maskPixels[i] * 255;
-			}
-			gotKinectFrame = true;
+	if (kinect.isFrameNew()) {
+		maskOfp.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+		maskOfp.resize(frameWidth, frameHeight);
+		tempPixels = maskOfp.getPixels();
+		
+		for (int i = 0; i < frameWidth * frameHeight; i++) {
+			maskPixelsDetail[i] = tempPixels[i] * 255 > maskPixelsDetail[i] ? tempPixels[i] * 255 : max(0, maskPixelsDetail[i] - 64);
+			maskPixels[i] = maskPixelsDetail[i] / 255;
 		}
+		
+		maskOfp.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+		blur(maskOfp, maskOfp, 50);
+		tempPixels = maskOfp.getPixels();
+		
+		for (int j = 0; j < frameWidth * frameHeight; j++) {
+			maskPixels[j] = tempPixels[j];
+		}
+		
+		gotKinectFrame = true;
 	}
 }
 
@@ -43,12 +50,13 @@ void testApp::draw() {
 	ofBackground(0);
 	
 	if (frameWidth > 0) {
-		distortedPixels = distorted.getPixels();
+		ofSetColor(255, 255, 255);
 		
 		if (gotKinectFrame) {
 			for (int x = 0; x < frameWidth; x++) {
 				for (int y = 0; y < frameHeight; y++) {
-					int frameIndex = maskPixelsDetail[y * frameWidth + x] * frameCount / 255 / 255;
+					int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
+					frameIndex = max(0, min(frameCount-1, frameIndex));
 					unsigned char* frame = frames[frameIndex];
 					
 					for (int c = 0; c < 3; c++) {
@@ -56,17 +64,19 @@ void testApp::draw() {
 						distortedPixels[pixelIndex] = frame[pixelIndex];
 					}
 				}
-			}
+			 }
+			
 			gotKinectFrame = false;
 		}
 		
-		ofSetColor(255, 255, 255);
-		
-		mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
-		mask.draw(frameWidth/2, 0, frameWidth/2, frameHeight/2);
-		
-		distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-		distorted.draw(0, frameHeight/2, frameWidth, frameHeight);
+		if (showMask) {
+			mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+			mask.draw(0, 0);
+		}
+		else {
+			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+			distorted.draw(0, 0);
+		}
 	}
 }
 
@@ -79,9 +89,17 @@ void testApp::readFrames(string filename) {
 	player.play();
 	player.setPaused(true);
 	
-	frameCount = player.getTotalNumFrames();
+	frameCount = 20; //player.getTotalNumFrames();
 	frameWidth = player.width;
 	frameHeight = player.height;
+	
+	distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
+	
+	maskPixels = new unsigned char[frameWidth * frameHeight];
+	maskPixelsDetail = new unsigned short int[frameWidth * frameHeight];
+	for (int p = 0; p < frameWidth * frameHeight; p++) {
+		maskPixels[p] = maskPixelsDetail[p] = 0;
+	}
 	
 	cout << "Loading frames..." << endl;
 	
@@ -100,18 +118,16 @@ void testApp::readFrames(string filename) {
 	player.closeMovie();
 	
 	distorted.setFromPixels(frames[0], frameWidth, frameHeight, OF_IMAGE_COLOR);
-	
-	// Reset mask.
-	maskPixelsDetail = new unsigned short int[frameWidth * frameHeight];
-	for (int i = 0; i < frameWidth * frameHeight; i++) {
-		maskPixelsDetail[i] = 0;
-	}
 }
 
 void testApp::clearFrames() {
 	for (int i = 0; i < frameCount; i++) {
 		delete[] frames[i];
 	}
+	
+	delete[] distortedPixels;
+	
+	delete[] maskPixels;
 	delete[] maskPixelsDetail;
 		
 	frameCount = 0;
@@ -135,6 +151,10 @@ void testApp::keyReleased(int key) {
 			
 		case 'x':
 			clearFrames();
+			break;
+		
+		case 't':
+			showMask = !showMask;
 			break;
 	}
 }
@@ -169,3 +189,4 @@ void testApp::dragEvent(ofDragInfo dragInfo) {
 		}
 	}
 }
+
