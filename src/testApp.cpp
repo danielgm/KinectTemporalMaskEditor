@@ -30,11 +30,13 @@ void testApp::update() {
 		tempPixels = maskOfp.getPixels();
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			// Threshold at 128, then normalize. Take the brighter pixel and fade back to black slowly.
-			int tempPixel = (max(128*255, tempPixels[i] * 255) - 128*255) * 2;
-			maskPixelsDetail[i] = tempPixel > maskPixelsDetail[i]
-									   ? tempPixel
-									   : max(0, maskPixelsDetail[i] - 128);
+			// Threshold at 128, then normalize.
+			int tempPixel = (max(128, (int)tempPixels[i]) - 128) * 255 * 2;
+			
+			// Take the brighter pixel and fade back to black slowly.
+			maskPixelsDetail[i] = tempPixel > maskPixelsDetail[i] ? tempPixel : max(0, maskPixelsDetail[i] - 128);
+			
+			// Copy low-fi value to maskPixels[].
 			maskPixels[i] = maskPixelsDetail[i] / 255;
 		}
 		
