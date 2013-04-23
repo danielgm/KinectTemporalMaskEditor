@@ -9,7 +9,7 @@ void testApp::setup() {
 	// enable depth->video image calibration
 	kinect.setRegistration(true);
     
-	kinect.init();
+	kinect.init(false, false);
 	kinect.open();
 	
 	ofSetFrameRate(60);
@@ -19,7 +19,7 @@ void testApp::setup() {
 	
 	readFrames("out12.mov");
 	
-	showMask = false;
+	showMask = true;
 }
 
 void testApp::update() {
@@ -30,7 +30,11 @@ void testApp::update() {
 		tempPixels = maskOfp.getPixels();
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			maskPixelsDetail[i] = tempPixels[i] * 255 > maskPixelsDetail[i] ? tempPixels[i] * 255 : max(0, maskPixelsDetail[i] - 64);
+			// Threshold at 128, then normalize. Take the brighter pixel and fade back to black slowly.
+			int tempPixel = (max(128*255, tempPixels[i] * 255) - 128*255) * 2;
+			maskPixelsDetail[i] = tempPixel > maskPixelsDetail[i]
+									   ? tempPixel
+									   : max(0, maskPixelsDetail[i] - 128);
 			maskPixels[i] = maskPixelsDetail[i] / 255;
 		}
 		
@@ -38,8 +42,11 @@ void testApp::update() {
 		blur(maskOfp, maskOfp, 50);
 		tempPixels = maskOfp.getPixels();
 		
-		for (int j = 0; j < frameWidth * frameHeight; j++) {
-			maskPixels[j] = tempPixels[j];
+		// Horizontal flip. No method for this in ofxCv?
+		for (int x = 0; x < frameWidth; x++) {
+			for (int y = 0; y < frameHeight; y++) {
+				maskPixels[y * frameWidth + x] = tempPixels[y * frameWidth + (frameWidth - x - 1)];
+			}
 		}
 		
 		gotKinectFrame = true;
