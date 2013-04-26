@@ -16,8 +16,9 @@ public:
 	void draw();
 	void exit();
 	
-	void clearFrames();
-	void readFrames(string);
+	void initMask();
+	void readMovieFrames(string);
+	void readFolderFrames(string);
 	void writeDistorted();
 	
 	void keyPressed(int key);
@@ -32,18 +33,17 @@ public:
 	
 	ofVideoPlayer player;
 	ofxKinect kinect;
-	ofxCv::ContourFinder contourFinder;
 	
-	int pointX;
-	int pointY;
-	int pointZ;
+	int nearThreshold;
+	int farThreshold;
+	int fadeRate;
+	
+	unsigned char* kinectPixels;
 	
 	vector<unsigned char*> frames;
 	ofImage frame;
-	bool gotKinectFrame;
 	
 	unsigned char* maskPixels;
-	unsigned char* tempPixels;
 	unsigned short int* maskPixelsDetail;
 	ofPixels maskOfp;
 	ofImage mask;
@@ -55,5 +55,7 @@ public:
 	int frameWidth;
 	int frameHeight;
 	
+	bool maskInitialized;
+	bool gotKinectFrame;
 	bool showMask;
 };
