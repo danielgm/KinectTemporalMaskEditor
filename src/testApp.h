@@ -17,7 +17,8 @@ public:
 	void exit();
 	
 	void clearFrames();
-	void readFrames(string);
+	void readMovieFrames(string);
+	void readFolderFrames(string);
 	void writeDistorted();
 	
 	void keyPressed(int key);
@@ -33,7 +34,7 @@ public:
 	ofVideoPlayer player;
 	ofxKinect kinect;
 	
-	unsigned char* tempPixels;
+	unsigned char* kinectPixels;
 	
 	vector<unsigned char*> frames;
 	ofImage frame;
