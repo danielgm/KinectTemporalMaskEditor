@@ -17,6 +17,10 @@ void testApp::setup() {
 	maskInitialized = false;
 	gotKinectFrame = false;
 	showMask = true;
+	
+	nearThreshold = 192;
+	farThreshold = 128;
+	fadeRate = 128;
 }
 
 void testApp::initMask() {
@@ -41,12 +45,15 @@ void testApp::update() {
 			for (int y = 0; y < kinect.height; y++) {
 				int i = y * kinect.width + x;
 				
-				// Normalize between 128 and 192. Multiply by another 255 for the higher-res
-				// maskPixelsDetail[]. Horizontal flip. No method for this in ofxCv?
-				int kinectPixel = (max(128, min(192, (int)kinectPixels[y * kinect.width + (kinect.width - x - 1)])) - 128) * 255 / (192 - 128) * 255;
+				// Horizontal flip. No method for this in ofxCv?
+				int kinectPixel = kinectPixels[y * kinect.width + (kinect.width - x - 1)];
+				// Normalize between near and far thresholds.
+				kinectPixel = (max(farThreshold, min(nearThreshold, kinectPixel)) - farThreshold) * 255 / (nearThreshold - farThreshold);
+				// Multiply by another 255 for the higher-res maskPixelsDetail[].
+				kinectPixel *= 255;
 				
 				// Take the brighter pixel and fade back to black slowly.
-				maskPixelsDetail[i] = kinectPixel > maskPixelsDetail[i] ? kinectPixel : max(0, maskPixelsDetail[i] - 128);
+				maskPixelsDetail[i] = kinectPixel > maskPixelsDetail[i] ? kinectPixel : max(0, maskPixelsDetail[i] - fadeRate);
 				
 				// Copy low-fi value to maskPixels[].
 				maskPixels[i] = maskPixelsDetail[i] / 255;

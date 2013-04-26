@@ -34,6 +34,10 @@ public:
 	ofVideoPlayer player;
 	ofxKinect kinect;
 	
+	int nearThreshold;
+	int farThreshold;
+	int fadeRate;
+	
 	unsigned char* kinectPixels;
 	
 	vector<unsigned char*> frames;
