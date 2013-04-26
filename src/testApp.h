@@ -16,6 +16,7 @@ public:
 	void draw();
 	void exit();
 	
+	void initMask();
 	void clearFrames();
 	void readMovieFrames(string);
 	void readFolderFrames(string);
@@ -38,7 +39,6 @@ public:
 	
 	vector<unsigned char*> frames;
 	ofImage frame;
-	bool gotKinectFrame;
 	
 	unsigned char* maskPixels;
 	unsigned short int* maskPixelsDetail;
@@ -52,5 +52,7 @@ public:
 	int frameWidth;
 	int frameHeight;
 	
+	bool maskInitialized;
+	bool gotKinectFrame;
 	bool showMask;
 };

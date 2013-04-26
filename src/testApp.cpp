@@ -6,7 +6,7 @@ using namespace cv;
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
 	
-	readFolderFrames("cheetah");
+	readFolderFrames("snowboard-s");
     
 	kinect.init(false, false);
 	kinect.open();
@@ -14,46 +14,54 @@ void testApp::setup() {
 	ofSetFrameRate(60);
 	kinect.setCameraTiltAngle(0);
 	
+	maskInitialized = false;
 	gotKinectFrame = false;
-	
 	showMask = true;
+}
+
+void testApp::initMask() {
+	maskOfp.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+	maskPixels = maskOfp.getPixels();
+	
+	maskPixelsDetail = new unsigned short int[kinect.width * kinect.height];
+	for (int i = 0; i < kinect.width * kinect.height; i++) {
+		maskPixelsDetail[i] = 0;
+	}
 }
 
 void testApp::update() {
 	kinect.update();
 	if (kinect.isFrameNew()) {
-		maskOfp.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-		maskOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR); // Resizing straight to frame dimensions crashes.
-		maskOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
-		kinectPixels = maskOfp.getPixels();
-		
-		for (int i = 0; i < frameWidth * frameHeight; i++) {
-				
-			// Normalize between 128 and 192. Multiply by another 255 for the higher-res
-			// maskPixelsDetail[]. 
-			int kinectPixel = (int)kinectPixels[i] * 255; //(max(128, min(192, (int)kinectPixels[i])) - 128) * 255 / (192 - 128) * 255;
-			
-			// enable depth->video image calibration
-			kinect.setRegistration(true);
-			
-			// Take the brighter pixel and fade back to black slowly.
-			maskPixelsDetail[i] = kinectPixel > maskPixelsDetail[i] ? kinectPixel : max(0, maskPixelsDetail[i] - 255);
-			
-			// Copy low-fi value to maskPixels[].
-			maskPixels[i] = maskPixelsDetail[i] / 255;
+		if (!maskOfp.isAllocated()) {
+			initMask();
 		}
 		
-		maskOfp.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
-		blur(maskOfp, maskOfp, 50);
-		kinectPixels = maskOfp.getPixels();
-
-		// Horizontal flip. No method for this in ofxCv?
-		for (int x = 0; x < frameWidth; x++) {
-			for (int y = 0; y < frameHeight; y++) {
-				maskPixels[y * frameWidth + x] = kinectPixels[y * frameWidth + (frameWidth - x - 1)];
+		kinectPixels = kinect.getDepthPixels();
+		for (int x = 0; x < kinect.width; x++) {
+			for (int y = 0; y < kinect.height; y++) {
+				int i = y * kinect.width + x;
+				
+				// Normalize between 128 and 192. Multiply by another 255 for the higher-res
+				// maskPixelsDetail[]. Horizontal flip. No method for this in ofxCv?
+				int kinectPixel = (max(128, min(192, (int)kinectPixels[y * kinect.width + (kinect.width - x - 1)])) - 128) * 255 / (192 - 128) * 255;
+				
+				// Take the brighter pixel and fade back to black slowly.
+				maskPixelsDetail[i] = kinectPixel > maskPixelsDetail[i] ? kinectPixel : max(0, maskPixelsDetail[i] - 128);
+				
+				// Copy low-fi value to maskPixels[].
+				maskPixels[i] = maskPixelsDetail[i] / 255;
 			}
 		}
 		
+		maskOfp.setFromPixels(maskPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+		if (frameWidth >= 1080) {
+			// HACK: Resizing straight to 1080p crashes.
+			maskOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR);
+		}
+		maskOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
+		blur(maskOfp, maskOfp, 50);
+		maskPixels = maskOfp.getPixels();
+
 		gotKinectFrame = true;
 	}
 }
@@ -82,7 +90,7 @@ void testApp::draw() {
 		}
 		
 		if (showMask) {
-			mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+			mask.setFromPixels(maskOfp);
 			mask.draw(0, 0);
 		}
 		else {
@@ -108,12 +116,6 @@ void testApp::readMovieFrames(string filename) {
 	cout << "Image size: " << frameWidth << "x" << frameHeight << endl;
 	
 	distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
-	
-	maskPixels = new unsigned char[frameWidth * frameHeight];
-	maskPixelsDetail = new unsigned short int[frameWidth * frameHeight];
-	for (int p = 0; p < frameWidth * frameHeight; p++) {
-		maskPixels[p] = maskPixelsDetail[p] = 0;
-	}
 	
 	cout << "Loading frames..." << endl;
 	
@@ -159,7 +161,7 @@ void testApp::readFolderFrames(string folder) {
 		cout << "Loading frames... ";
 		
 		count = 0;
-		while (count < 50 && file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
+		while (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
 			image.loadImage(folder + "/frame" + indexString + ".jpg");
 			if (count == 0) {
 				frameWidth = image.width;
@@ -184,12 +186,6 @@ void testApp::readFolderFrames(string folder) {
 		frameCount = count;
 		
 		distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
-		
-		maskPixels = new unsigned char[frameWidth * frameHeight];
-		maskPixelsDetail = new unsigned short int[frameWidth * frameHeight];
-		for (i = 0; i < frameWidth * frameHeight; i++) {
-			maskPixels[i] = maskPixelsDetail[i] = 0;
-		}
 	}
 	else {
 		cout << "Failed to find frames in path: " + folder + "/frame%4d.jpg" << endl;
@@ -203,7 +199,6 @@ void testApp::clearFrames() {
 	
 	delete[] distortedPixels;
 	
-	delete[] maskPixels;
 	delete[] maskPixelsDetail;
 		
 	frameCount = 0;
