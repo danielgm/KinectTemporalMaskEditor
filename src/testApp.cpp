@@ -101,7 +101,20 @@ void testApp::draw() {
 }
 
 void testApp::exit() {
-	clearFrames();
+	if (maskOfp.isAllocated()) {
+		maskOfp.clear();
+		delete[] maskPixelsDetail;
+	}
+	
+	for (int i = 0; i < frameCount; i++) {
+		delete[] frames[i];
+	}
+	
+	delete[] distortedPixels;
+	
+	frameCount = 0;
+	frameWidth = 0;
+	frameHeight = 0;
 }
 
 void testApp::readMovieFrames(string filename) {
@@ -192,20 +205,6 @@ void testApp::readFolderFrames(string folder) {
 	}
 }
 
-void testApp::clearFrames() {
-	for (int i = 0; i < frameCount; i++) {
-		delete[] frames[i];
-	}
-	
-	delete[] distortedPixels;
-	
-	delete[] maskPixelsDetail;
-		
-	frameCount = 0;
-	frameWidth = 0;
-	frameHeight = 0;
-}
-
 void testApp::writeDistorted() {
 	distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
 	distorted.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
@@ -216,12 +215,8 @@ void testApp::keyPressed(int key) {
 
 void testApp::keyReleased(int key) {
 	switch (key) {
-		case 's':
+		case ' ':
 			writeDistorted();
-			break;
-			
-		case 'x':
-			clearFrames();
 			break;
 		
 		case 't':
@@ -246,18 +241,7 @@ void testApp::windowResized(int w, int h) {
 
 void testApp::gotMessage(ofMessage msg) {
 }
+
 void testApp::dragEvent(ofDragInfo dragInfo) {
-	for (int i = 0; i < dragInfo.files.size(); i++) {
-		string filename = dragInfo.files[i];
-		vector<string> tokens = ofSplitString(filename, ".");
-		string extension = tokens[tokens.size() - 1];
-		if (extension == "mov") {
-			clearFrames();
-			readMovieFrames(filename);
-		}
-		else {
-			cout << "Unknown file type: " << extension << endl;
-		}
-	}
 }
 

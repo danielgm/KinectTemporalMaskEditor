@@ -17,7 +17,6 @@ public:
 	void exit();
 	
 	void initMask();
-	void clearFrames();
 	void readMovieFrames(string);
 	void readFolderFrames(string);
 	void writeDistorted();
