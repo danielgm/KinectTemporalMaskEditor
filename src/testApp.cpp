@@ -229,6 +229,18 @@ void testApp::keyReleased(int key) {
 		case 't':
 			showMask = !showMask;
 			break;
+			
+		case 'j':
+			fadeRate -= 64;
+			if (fadeRate < 0) fadeRate = 0;
+			cout << "Fade rate: " << fadeRate << endl;
+			break;
+			
+		case 'k':
+			fadeRate += 64;
+			if (fadeRate > 255 * 255) fadeRate = 255 * 255;
+			cout << "Fade rate: " << fadeRate << endl;
+			break;
 	}
 }
 
