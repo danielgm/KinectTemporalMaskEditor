@@ -58,4 +58,5 @@ public:
 	bool maskInitialized;
 	bool gotKinectFrame;
 	bool showMask;
+	bool reverseTime;
 };

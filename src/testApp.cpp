@@ -17,6 +17,7 @@ void testApp::setup() {
 	maskInitialized = false;
 	gotKinectFrame = false;
 	showMask = true;
+	reverseTime = false;
 	
 	nearThreshold = 192;
 	farThreshold = 128;
@@ -84,6 +85,7 @@ void testApp::draw() {
 				for (int y = 0; y < frameHeight; y++) {
 					int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
 					frameIndex = max(0, min(frameCount-1, frameIndex));
+					if (reverseTime) frameIndex = frameCount - frameIndex - 1;
 					unsigned char* frame = frames[frameIndex];
 					
 					for (int c = 0; c < 3; c++) {
@@ -222,6 +224,10 @@ void testApp::keyPressed(int key) {
 
 void testApp::keyReleased(int key) {
 	switch (key) {
+		case 'r':
+			reverseTime = !reverseTime;
+			break;
+			
 		case ' ':
 			writeDistorted();
 			break;
