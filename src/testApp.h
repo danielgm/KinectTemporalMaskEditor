@@ -21,6 +21,8 @@ public:
 	void readFolderFrames(string);
 	void writeDistorted();
 	
+	void calculateDrawSize();
+	
 	void keyPressed(int key);
 	void keyReleased(int key);
 	void mouseMoved(int x, int y);
@@ -54,6 +56,12 @@ public:
 	int frameCount;
 	int frameWidth;
 	int frameHeight;
+	
+	int screenWidth;
+	int screenHeight;
+	
+	int drawWidth;
+	int drawHeight;
 	
 	bool maskInitialized;
 	bool gotKinectFrame;

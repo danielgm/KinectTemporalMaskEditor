@@ -22,6 +22,11 @@ void testApp::setup() {
 	nearThreshold = 192;
 	farThreshold = 128;
 	fadeRate = 128;
+	
+	screenWidth = ofGetScreenWidth();
+	screenHeight = ofGetScreenHeight();
+	
+	calculateDrawSize();
 }
 
 void testApp::initMask() {
@@ -100,11 +105,11 @@ void testApp::draw() {
 		
 		if (showMask) {
 			mask.setFromPixels(maskOfp);
-			mask.draw(0, 0);
+			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
 		else {
 			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-			distorted.draw(0, 0);
+			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
 	}
 }
@@ -134,6 +139,8 @@ void testApp::readMovieFrames(string filename) {
 	frameCount = player.getTotalNumFrames();
 	frameWidth = player.width;
 	frameHeight = player.height;
+	
+	calculateDrawSize();
 	
 	cout << "Image size: " << frameWidth << "x" << frameHeight << endl;
 	
@@ -188,6 +195,7 @@ void testApp::readFolderFrames(string folder) {
 			if (count == 0) {
 				frameWidth = image.width;
 				frameHeight = image.height;
+				calculateDrawSize();
 			}
 			
 			copyPixels = image.getPixels();
@@ -217,6 +225,19 @@ void testApp::readFolderFrames(string folder) {
 void testApp::writeDistorted() {
 	distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
 	distorted.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
+}
+
+void testApp::calculateDrawSize() {
+	float frameAspect = (float) frameWidth / frameHeight;
+	float screenAspect = (float) screenWidth / screenHeight;
+	if (frameAspect < screenAspect) {
+		drawHeight = screenHeight;
+		drawWidth = screenHeight * frameAspect;
+	}
+	else {
+		drawWidth = screenWidth;
+		drawHeight = screenWidth / frameAspect;
+	}
 }
 
 void testApp::keyPressed(int key) {
