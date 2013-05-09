@@ -4,6 +4,7 @@
 #include "ofUtils.h"
 #include "ofxCv.h"
 #include "ofxKinect.h"
+#include "ofxThreadedImageSaver.h"
 #include "vector.h"
 
 // For small speed improvement?
@@ -51,7 +52,7 @@ public:
 	ofImage mask;
 	
 	unsigned char* distortedPixels;
-	ofImage distorted;
+	ofxThreadedImageSaver distorted;
 	
 	int frameCount;
 	int frameWidth;
@@ -67,4 +68,5 @@ public:
 	bool gotKinectFrame;
 	bool showMask;
 	bool reverseTime;
+	bool recording;
 };

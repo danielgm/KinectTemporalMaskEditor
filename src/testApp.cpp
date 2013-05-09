@@ -18,6 +18,7 @@ void testApp::setup() {
 	gotKinectFrame = false;
 	showMask = true;
 	reverseTime = false;
+	recording = false;
 	
 	nearThreshold = 192;
 	farThreshold = 128;
@@ -25,6 +26,8 @@ void testApp::setup() {
 	
 	screenWidth = ofGetScreenWidth();
 	screenHeight = ofGetScreenHeight();
+	
+	distorted.allocate(screenWidth, screenHeight, OF_IMAGE_COLOR);
 	
 	calculateDrawSize();
 }
@@ -98,18 +101,22 @@ void testApp::draw() {
 						distortedPixels[pixelIndex] = frame[pixelIndex];
 					}
 				}
-			 }
+			}
+			
+			if (showMask) {
+				mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+				mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+			}
+			else {
+				distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+				distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+			}
+			
+			if (recording) {
+				distorted.saveThreaded("out/frame.png");
+			}
 			
 			gotKinectFrame = false;
-		}
-		
-		if (showMask) {
-			mask.setFromPixels(maskOfp);
-			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-		}
-		else {
-			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
 	}
 }
@@ -267,6 +274,12 @@ void testApp::keyReleased(int key) {
 			fadeRate += 64;
 			if (fadeRate > 255 * 255) fadeRate = 255 * 255;
 			cout << "Fade rate: " << fadeRate << endl;
+			break;
+		
+		case 'm':
+			recording = !recording;
+			if (recording) cout << "Recording!!" << endl;
+			else cout << "Stopped recording." << endl;
 			break;
 	}
 }

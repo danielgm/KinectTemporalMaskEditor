@@ -24,6 +24,8 @@
 		03222D4B1723334E00E00BF1 /* ofxCvHaarFinder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03222D3E1723334E00E00BF1 /* ofxCvHaarFinder.cpp */; };
 		03222D4C1723334E00E00BF1 /* ofxCvImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03222D401723334E00E00BF1 /* ofxCvImage.cpp */; };
 		03222D4D1723334E00E00BF1 /* ofxCvShortImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03222D431723334E00E00BF1 /* ofxCvShortImage.cpp */; };
+		03F0902A173B130F008E0CA1 /* ofxThreadedImageSaver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03F09028173B130F008E0CA1 /* ofxThreadedImageSaver.cpp */; };
+		03F0903A173B1341008E0CA1 /* ofxThread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03F09036173B1341008E0CA1 /* ofxThread.cpp */; };
 		03FE0EFC1685670C00830AB8 /* cameras.c in Sources */ = {isa = PBXBuildFile; fileRef = 03FE0EA41685670C00830AB8 /* cameras.c */; };
 		03FE0EFD1685670C00830AB8 /* core.c in Sources */ = {isa = PBXBuildFile; fileRef = 03FE0EA71685670C00830AB8 /* core.c */; };
 		03FE0EFE1685670C00830AB8 /* freenect.lib in Frameworks */ = {isa = PBXBuildFile; fileRef = 03FE0EAD1685670C00830AB8 /* freenect.lib */; };
@@ -206,6 +208,10 @@
 		03222D431723334E00E00BF1 /* ofxCvShortImage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxCvShortImage.cpp; sourceTree = "<group>"; };
 		03222D441723334E00E00BF1 /* ofxCvShortImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxCvShortImage.h; sourceTree = "<group>"; };
 		03222D451723334E00E00BF1 /* ofxOpenCv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxOpenCv.h; sourceTree = "<group>"; };
+		03F09028173B130F008E0CA1 /* ofxThreadedImageSaver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxThreadedImageSaver.cpp; sourceTree = "<group>"; };
+		03F09029173B130F008E0CA1 /* ofxThreadedImageSaver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxThreadedImageSaver.h; sourceTree = "<group>"; };
+		03F09036173B1341008E0CA1 /* ofxThread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxThread.cpp; sourceTree = "<group>"; };
+		03F09037173B1341008E0CA1 /* ofxThread.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxThread.h; sourceTree = "<group>"; };
 		03FE0EA31685670C00830AB8 /* APACHE20 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = APACHE20; sourceTree = "<group>"; };
 		03FE0EA41685670C00830AB8 /* cameras.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = cameras.c; sourceTree = "<group>"; };
 		03FE0EA51685670C00830AB8 /* cameras.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cameras.h; sourceTree = "<group>"; };
@@ -670,6 +676,24 @@
 			path = src;
 			sourceTree = "<group>";
 		};
+		03F0902B173B1341008E0CA1 /* ofxThread */ = {
+			isa = PBXGroup;
+			children = (
+				03F09035173B1341008E0CA1 /* src */,
+			);
+			name = ofxThread;
+			path = ../../../../of_v0072_osx_release/addons/ofxThread;
+			sourceTree = "<group>";
+		};
+		03F09035173B1341008E0CA1 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				03F09036173B1341008E0CA1 /* ofxThread.cpp */,
+				03F09037173B1341008E0CA1 /* ofxThread.h */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
 		03FE0E851685670C00830AB8 /* ofxKinect */ = {
 			isa = PBXGroup;
 			children = (
@@ -975,8 +999,9 @@
 		BB4B014C10F69532006C3DED /* addons */ = {
 			isa = PBXGroup;
 			children = (
-				03222CCA1723334D00E00BF1 /* ofxOpenCv */,
+				03F0902B173B1341008E0CA1 /* ofxThread */,
 				03222A031723333800E00BF1 /* ofxCv */,
+				03222CCA1723334D00E00BF1 /* ofxOpenCv */,
 				03FE0E851685670C00830AB8 /* ofxKinect */,
 			);
 			name = addons;
@@ -1048,6 +1073,8 @@
 				E4B69E1D0A3A1BDC003C02F2 /* main.cpp */,
 				E4B69E1E0A3A1BDC003C02F2 /* testApp.cpp */,
 				E4B69E1F0A3A1BDC003C02F2 /* testApp.h */,
+				03F09028173B130F008E0CA1 /* ofxThreadedImageSaver.cpp */,
+				03F09029173B130F008E0CA1 /* ofxThreadedImageSaver.h */,
 			);
 			path = src;
 			sourceTree = SOURCE_ROOT;
@@ -1169,6 +1196,8 @@
 				03222D4B1723334E00E00BF1 /* ofxCvHaarFinder.cpp in Sources */,
 				03222D4C1723334E00E00BF1 /* ofxCvImage.cpp in Sources */,
 				03222D4D1723334E00E00BF1 /* ofxCvShortImage.cpp in Sources */,
+				03F0902A173B130F008E0CA1 /* ofxThreadedImageSaver.cpp in Sources */,
+				03F0903A173B1341008E0CA1 /* ofxThread.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1203,12 +1232,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = NO;
 				GCC_WARN_UNUSED_VALUE = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
-				HEADER_SEARCH_PATHS = (
-					"$(OF_CORE_HEADERS)",
-					src,
-					"../../../addons/ofxKinect/libs/libusb/osx/libs/usb-1.0.a",
-					../../../addons/ofxKinect/libs/libusb/osx/include,
-				);
+				HEADER_SEARCH_PATHS = "$(OF_CORE_HEADERS)";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CPLUSPLUSFLAGS = (
 					"-D__MACOSX_CORE__",
@@ -1240,12 +1264,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = NO;
 				GCC_WARN_UNUSED_VALUE = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
-				HEADER_SEARCH_PATHS = (
-					"$(OF_CORE_HEADERS)",
-					src,
-					"../../../addons/ofxKinect/libs/libusb/osx/libs/usb-1.0.a",
-					../../../addons/ofxKinect/libs/libusb/osx/include,
-				);
+				HEADER_SEARCH_PATHS = "$(OF_CORE_HEADERS)";
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OTHER_CPLUSPLUSFLAGS = (
 					"-D__MACOSX_CORE__",
@@ -1273,7 +1292,6 @@
 				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/Carbon.framework/Headers/Carbon.h";
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
-					src,
 					../../../addons/ofxKinect/src,
 					../../../addons/ofxKinect/libs/libfreenect,
 					../../../addons/ofxKinect/libs/libusb/osx/include,
@@ -1282,6 +1300,7 @@
 					../../../addons/ofxCv/libs/ofxCv/src,
 					../../../addons/ofxCv/libs/ofxCv/include,
 					../../../addons/ofxOpenCv/libs/opencv/include,
+					../../../addons/ofxThread/src,
 				);
 				INFOPLIST_FILE = "openFrameworks-Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";
@@ -1379,7 +1398,6 @@
 				GCC_PREFIX_HEADER = "$(SYSTEM_LIBRARY_DIR)/Frameworks/Carbon.framework/Headers/Carbon.h";
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
-					src,
 					../../../addons/ofxKinect/src,
 					../../../addons/ofxKinect/libs/libfreenect,
 					../../../addons/ofxKinect/libs/libusb/osx/include,
@@ -1388,6 +1406,7 @@
 					../../../addons/ofxCv/libs/ofxCv/src,
 					../../../addons/ofxCv/libs/ofxCv/include,
 					../../../addons/ofxOpenCv/libs/opencv/include,
+					../../../addons/ofxThread/src,
 				);
 				INFOPLIST_FILE = "openFrameworks-Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";
