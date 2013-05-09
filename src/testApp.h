@@ -6,9 +6,6 @@
 #include "ofxKinect.h"
 #include "vector.h"
 
-// For small speed improvement?
-#define ONE_OVER_255 0.00392157
-
 class testApp : public ofBaseApp {
 public:
 	void setup();
