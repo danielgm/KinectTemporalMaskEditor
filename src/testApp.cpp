@@ -29,6 +29,8 @@ void testApp::setup() {
 	
 	distorted.allocate(screenWidth, screenHeight, OF_IMAGE_COLOR);
 	
+	filenameIndex = 1;
+	
 	calculateDrawSize();
 }
 
@@ -113,7 +115,9 @@ void testApp::draw() {
 			}
 			
 			if (recording) {
-				distorted.saveThreaded("out/frame.png");
+				string filenameIndexStr = ofToString(filenameIndex++);
+				while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
+				distorted.saveImage("out/frame" + filenameIndexStr + ".tga");
 			}
 			
 			gotKinectFrame = false;
