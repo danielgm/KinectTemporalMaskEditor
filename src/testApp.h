@@ -4,6 +4,7 @@
 #include "ofUtils.h"
 #include "ofxCv.h"
 #include "ofxKinect.h"
+#include "time.h"
 #include "vector.h"
 
 struct inputClip {
@@ -78,5 +79,6 @@ public:
 	
 	ofTrueTypeFont font;
 	
-	int filenameIndex;
+	string recordingPath;
+	int recordingImageIndex;
 };

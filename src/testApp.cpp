@@ -35,8 +35,6 @@ void testApp::setup() {
 	
 	distorted.allocate(screenWidth, screenHeight, OF_IMAGE_COLOR);
 	
-	filenameIndex = 1;
-	
 	calculateDrawSize();
 	
 	ofBackground(0);
@@ -127,9 +125,9 @@ void testApp::draw() {
 		}
 		
 		if (recording) {
-			string filenameIndexStr = ofToString(filenameIndex++);
+			string filenameIndexStr = ofToString(recordingImageIndex++);
 			while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
-			distorted.saveImage("out/frame" + filenameIndexStr + ".jpg");
+			distorted.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
 		}
 	}
 	
@@ -279,8 +277,33 @@ void testApp::keyReleased(int key) {
 		
 		case 'm':
 			recording = !recording;
-			if (recording) cout << "Recording!!" << endl;
-			else cout << "Stopped recording." << endl;
+			if (recording) {
+				// Create recording folder from timestamp.
+				time_t rawtime;
+				struct tm * timeinfo;
+				char buffer [80];
+				
+				time (&rawtime);
+				timeinfo = localtime (&rawtime);
+				
+				strftime(buffer, 80, "%Y-%m-%d %H-%M-%S", timeinfo);
+				stringstream ss;
+				ss << buffer;
+				recordingPath = ss.str();
+				
+				ofDirectory d;
+				if (!d.doesDirectoryExist(recordingPath)) {
+					d.createDirectory(recordingPath);
+					recordingImageIndex = 0;
+				}
+				
+				cout << "Recording to " << recordingPath << endl;
+			}
+			else {
+				cout << "Recorded " << recordingImageIndex << " frames to " << recordingPath << endl;
+				recordingPath = "";
+				recordingImageIndex = 0;
+			}
 			break;
 		
 		case '0':
