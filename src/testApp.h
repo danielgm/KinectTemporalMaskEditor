@@ -52,6 +52,9 @@ public:
 	ofPixels maskOfp;
 	ofImage mask;
 	
+	ofPixels ghostOfp;
+	unsigned char* ghostPixels;
+	
 	unsigned char* distortedPixels;
 	ofImage distorted;
 	
@@ -70,6 +73,7 @@ public:
 	
 	bool showHud;
 	bool showMask;
+	bool showGhost;
 	bool reverseTime;
 	bool recording;
 	

@@ -17,7 +17,8 @@ void testApp::setup() {
 	
 	showHud = true;
 	showMask = false;
-	reverseTime = false;
+	showGhost = true;
+	reverseTime = true;
 	recording = false;
 	
 	font.loadFont("verdana.ttf", 20);
@@ -71,10 +72,13 @@ void testApp::update() {
 			for (int y = 0; y < kinect.height; y++) {
 				int i = y * kinect.width + x;
 				
-				// Horizontal flip. No method for this in ofxCv?
-				int kinectPixel = kinectPixels[y * kinect.width + (kinect.width - x - 1)];
+				int kinectPixel = kinectPixels[y * kinect.width + x];
 				// Normalize between near and far thresholds.
 				kinectPixel = (max(farThreshold, min(nearThreshold, kinectPixel)) - farThreshold) * 255 / (nearThreshold - farThreshold);
+				
+				// Set the pixel in the recent mask.
+				kinectPixels[i] = kinectPixel;
+				
 				// Multiply by another 255 for the higher-res maskPixelsDetail[].
 				kinectPixel *= 255;
 				
@@ -95,15 +99,29 @@ void testApp::update() {
 		blur(maskOfp, maskOfp, 50);
 		maskPixels = maskOfp.getPixels();
 		
+		if (showGhost) {
+			ghostOfp.setFromPixels(kinectPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+			if (frameWidth >= 1080) {
+				// HACK: Resizing straight to 1080p crashes.
+				ghostOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR);
+			}
+			ghostOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
+			ghostPixels = ghostOfp.getPixels();
+		}
+		
 		for (int x = 0; x < frameWidth; x++) {
 			for (int y = 0; y < frameHeight; y++) {
-				int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
+				// Horizontal flip.
+				int frameIndex = maskPixels[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
 				frameIndex = max(0, min(frameCount-1, frameIndex));
 				if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
 				
 				for (int c = 0; c < 3; c++) {
 					int pixelIndex = y * frameWidth * 3 + x * 3 + c;
 					distortedPixels[pixelIndex] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + pixelIndex];
+					if (showGhost) {
+						distortedPixels[pixelIndex] = MIN(255, distortedPixels[pixelIndex] + 20 * ghostPixels[y * frameWidth + (frameWidth - x - 1)] / 255);
+					}
 				}
 			}
 		}
@@ -145,6 +163,7 @@ void testApp::draw() {
 			<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 			<< "Frame count: " << frameCount << endl
 			<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
+			<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 			<< "(T) Display: " << (showMask ? "mask" : "output") << endl
 			<< "(J/K) Fade rate: " << fadeRate << endl
 			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
@@ -258,7 +277,11 @@ void testApp::keyReleased(int key) {
 		case 'w':
 			writeDistorted();
 			break;
-		
+			
+		case 'g':
+			showGhost = !showGhost;
+			break;
+			
 		case 't':
 			showMask = !showMask;
 			break;
