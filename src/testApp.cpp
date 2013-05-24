@@ -14,7 +14,6 @@ void testApp::setup() {
 	
 	movieFramesAllocated = false;
 	maskInitialized = false;
-	gotKinectFrame = false;
 	
 	showHud = true;
 	showMask = false;
@@ -23,10 +22,9 @@ void testApp::setup() {
 	
 	font.loadFont("verdana.ttf", 20);
 	
-	inputNames.push_back("cheetah/cheetah-s");
-	inputNames.push_back("firetennis");
-	inputNames.push_back("raptor_retimed");
-	inputNames.push_back("snowboard-s");
+	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
+	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
+	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day");
 	
 	nearThreshold = 214;
 	farThreshold = 164;
@@ -52,6 +50,15 @@ void testApp::initMask() {
 	for (int i = 0; i < kinect.width * kinect.height; i++) {
 		maskPixelsDetail[i] = 0;
 	}
+}
+
+inputClip testApp::addInputClip(string title, string path, string credit) {
+	inputClip clip;
+	clip.title = title;
+	clip.path = path;
+	clip.credit = credit;
+	inputClips.push_back(clip);
+	return clip;
 }
 
 void testApp::update() {
@@ -130,8 +137,8 @@ void testApp::draw() {
 		stringstream str;
 		
 		str << "(0) Clear frames." << endl;
-		for (int i = 0; i < inputNames.size(); i++) {
-			str << "(" << (i + 1) << ") " << inputNames.at(i) << endl;
+		for (int i = 0; i < inputClips.size(); i++) {
+			str << "(" << (i + 1) << ") " << inputClips.at(i).title << endl;
 		}
 		font.drawString(str.str(), 32, 32);
 		str.str(std::string());
@@ -147,6 +154,8 @@ void testApp::draw() {
 		font.drawString(str.str(), 32, 652);
 		str.str(std::string());
 	}
+	
+	font.drawString(credit, 32, screenHeight - 24);
 }
 
 void testApp::exit() {
@@ -288,9 +297,10 @@ void testApp::keyReleased(int key) {
 		case '8':
 		case '9':
 			key -= 48;
-			if (key - 1 < inputNames.size()) {
+			if (key - 1 < inputClips.size()) {
 				clearMovieFrames();
-				readFolderFrames(inputNames[key - 1]);
+				readFolderFrames(inputClips.at(key - 1).path);
+				credit = inputClips.at(key - 1).credit;
 			}
 			break;
 	}

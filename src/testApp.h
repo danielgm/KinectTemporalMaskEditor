@@ -6,6 +6,12 @@
 #include "ofxKinect.h"
 #include "vector.h"
 
+struct inputClip {
+	string title;
+	string path;
+	string credit;
+};
+
 class testApp : public ofBaseApp {
 public:
 	void setup();
@@ -14,6 +20,7 @@ public:
 	void exit();
 	
 	void initMask();
+	inputClip addInputClip(string title, string path, string credit);
 	void readFolderFrames(string);
 	void clearMovieFrames();
 	
@@ -65,7 +72,8 @@ public:
 	bool reverseTime;
 	bool recording;
 	
-	vector<string> inputNames;
+	vector<inputClip> inputClips;
+	string credit;
 	unsigned char* inputPixels;
 	
 	ofTrueTypeFont font;
