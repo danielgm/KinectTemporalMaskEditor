@@ -5,8 +5,6 @@ using namespace cv;
 
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
-	
-	readFolderFrames("snowboard-s");
     
 	kinect.init(false, false);
 	kinect.open();
@@ -14,15 +12,25 @@ void testApp::setup() {
 	ofSetFrameRate(60);
 	kinect.setCameraTiltAngle(0);
 	
+	movieFramesAllocated = false;
 	maskInitialized = false;
 	gotKinectFrame = false;
-	showMask = true;
+	
+	showHud = true;
+	showMask = false;
 	reverseTime = false;
 	recording = false;
 	
-	nearThreshold = 192;
-	farThreshold = 128;
-	fadeRate = 128;
+	font.loadFont("verdana.ttf", 20);
+	
+	inputNames.push_back("cheetah/cheetah-s");
+	inputNames.push_back("firetennis");
+	inputNames.push_back("raptor_retimed");
+	inputNames.push_back("snowboard-s");
+	
+	nearThreshold = 214;
+	farThreshold = 164;
+	fadeRate = 256;
 	
 	screenWidth = ofGetScreenWidth();
 	screenHeight = ofGetScreenHeight();
@@ -32,6 +40,8 @@ void testApp::setup() {
 	filenameIndex = 1;
 	
 	calculateDrawSize();
+	
+	ofBackground(0);
 }
 
 void testApp::initMask() {
@@ -79,157 +89,131 @@ void testApp::update() {
 		maskOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
 		blur(maskOfp, maskOfp, 50);
 		maskPixels = maskOfp.getPixels();
-
-		gotKinectFrame = true;
+		
+		for (int x = 0; x < frameWidth; x++) {
+			for (int y = 0; y < frameHeight; y++) {
+				int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
+				frameIndex = max(0, min(frameCount-1, frameIndex));
+				if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
+				
+				for (int c = 0; c < 3; c++) {
+					int pixelIndex = y * frameWidth * 3 + x * 3 + c;
+					distortedPixels[pixelIndex] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + pixelIndex];
+				}
+			}
+		}
 	}
 }
 
 void testApp::draw() {
 	ofBackground(0);
+	ofSetColor(255, 255, 255);
 	
-	if (frameWidth > 0) {
-		ofSetColor(255, 255, 255);
-		
-		if (gotKinectFrame) {
-			for (int x = 0; x < frameWidth; x++) {
-				for (int y = 0; y < frameHeight; y++) {
-					int frameIndex = maskPixels[y * frameWidth + x] * frameCount / 255;
-					frameIndex = max(0, min(frameCount-1, frameIndex));
-					if (reverseTime) frameIndex = frameCount - frameIndex - 1;
-					unsigned char* frame = frames[frameIndex];
-					
-					for (int c = 0; c < 3; c++) {
-						int pixelIndex = y * frameWidth * 3 + x * 3 + c;
-						distortedPixels[pixelIndex] = frame[pixelIndex];
-					}
-				}
-			}
-			
-			if (showMask) {
-				mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
-				mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-			}
-			else {
-				distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-				distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-			}
-			
-			if (recording) {
-				string filenameIndexStr = ofToString(filenameIndex++);
-				while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
-				distorted.saveImage("out/frame" + filenameIndexStr + ".tga");
-			}
-			
-			gotKinectFrame = false;
+	if (movieFramesAllocated) {
+		if (showMask) {
+			mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
+		else {
+			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+		}
+		
+		if (recording) {
+			string filenameIndexStr = ofToString(filenameIndex++);
+			while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
+			distorted.saveImage("out/frame" + filenameIndexStr + ".jpg");
+		}
+	}
+	
+	if (showHud) {
+		stringstream str;
+		
+		str << "(0) Clear frames." << endl;
+		for (int i = 0; i < inputNames.size(); i++) {
+			str << "(" << (i + 1) << ") " << inputNames.at(i) << endl;
+		}
+		font.drawString(str.str(), 32, 32);
+		str.str(std::string());
+		
+		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
+			<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
+			<< "Frame count: " << frameCount << endl
+			<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
+			<< "(T) Display: " << (showMask ? "mask" : "output") << endl
+			<< "(J/K) Fade rate: " << fadeRate << endl
+			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
+			<< "(ESC) Quit" << endl;
+		font.drawString(str.str(), 32, 652);
+		str.str(std::string());
 	}
 }
 
 void testApp::exit() {
-	if (maskOfp.isAllocated()) {
-		maskOfp.clear();
-		delete[] maskPixelsDetail;
-	}
-	
-	for (int i = 0; i < frameCount; i++) {
-		delete[] frames[i];
-	}
-	
-	delete[] distortedPixels;
-	
-	frameCount = 0;
-	frameWidth = 0;
-	frameHeight = 0;
-}
-
-void testApp::readMovieFrames(string filename) {
-	player.loadMovie(filename);
-	player.play();
-	player.setPaused(true);
-	
-	frameCount = player.getTotalNumFrames();
-	frameWidth = player.width;
-	frameHeight = player.height;
-	
-	calculateDrawSize();
-	
-	cout << "Image size: " << frameWidth << "x" << frameHeight << endl;
-	
-	distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
-	
-	cout << "Loading frames..." << endl;
-	
-	unsigned char* copyPixels;
-	for (int i = 0; i < frameCount; i++) {
-		cout << i << " of " << frameCount << endl;
-		copyPixels = player.getPixels();
-		unsigned char* framePixels = new unsigned char[frameWidth * frameHeight * 3];
-		for (int i = 0; i < frameWidth * frameHeight * 3; i++) {
-			framePixels[i] = copyPixels[i];
-		}
-		frames.push_back(framePixels);
-		player.nextFrame();
-	}
-	
-	player.closeMovie();
-	
-	distorted.setFromPixels(frames[0], frameWidth, frameHeight, OF_IMAGE_COLOR);
+	clearMovieFrames();
 }
 
 void testApp::readFolderFrames(string folder) {
 	ofFile file;
-	bool foundFile = false;
 	ofImage image;
 	unsigned char* copyPixels;
-	int index, i, count;
-	string indexString;
 	
 	frameCount = 0;
 	frameWidth = 0;
 	frameHeight = 0;
 	
-	for (index = 0; index < 100; index++) {
-		indexString = ofToString(index);
-		while (indexString.length() < 4) indexString = "0" + indexString;
-		if (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
-			foundFile = true;
-			break;
+	char indexString[5];
+	sprintf(indexString, "%04d", frameCount + 1);
+	while (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
+		frameCount++;
+		sprintf(indexString, "%04d", frameCount + 1);
+	}
+	
+	if (frameCount <= 0) return;
+	
+	// Determine image size from the first frame.
+	image.loadImage(folder + "/frame0001.jpg");
+	frameWidth = image.width;
+	frameHeight = image.height;
+	calculateDrawSize();
+	
+	if (frameWidth <= 0 || frameHeight <= 0) return;
+	
+	cout << "Loading " << frameCount << " frames... ";
+	
+	inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
+	for (int i = 0; i < frameCount; i++) {
+		sprintf(indexString, "%04d", i + 1);
+		image.loadImage(folder + "/frame" + indexString + ".jpg");
+		
+		copyPixels = image.getPixels();
+		for (int j = 0; j < frameWidth * frameHeight * 3; j++) {
+			unsigned char c = copyPixels[j];
+			inputPixels[i * frameWidth * frameHeight * 3 + j] = c;
 		}
 	}
 	
-	if (foundFile) {
-		cout << "Loading frames... ";
-		
-		count = 0;
-		while (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
-			image.loadImage(folder + "/frame" + indexString + ".jpg");
-			if (count == 0) {
-				frameWidth = image.width;
-				frameHeight = image.height;
-				calculateDrawSize();
-			}
-			
-			copyPixels = image.getPixels();
-			unsigned char* framePixels = new unsigned char[frameWidth * frameHeight * 3];
-			for (i = 0; i < frameWidth * frameHeight * 3; i++) {
-				framePixels[i] = copyPixels[i];
-			}
-			frames.push_back(framePixels);
-			
-			count++;
-			index++;
-			indexString = ofToString(index);
-			while (indexString.length() < 4) indexString = "0" + indexString;
+	cout << "done." << endl;
+	
+	distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
+	movieFramesAllocated = true;
+}
+
+void testApp::clearMovieFrames() {
+	if (movieFramesAllocated) {
+		if (maskOfp.isAllocated()) {
+			maskOfp.clear();
+			delete[] maskPixelsDetail;
 		}
 		
-		cout << "done." << endl;
+		delete[] inputPixels;
+		delete[] distortedPixels;
 		
-		frameCount = count;
+		frameCount = 0;
+		frameWidth = 0;
+		frameHeight = 0;
 		
-		distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
-	}
-	else {
-		cout << "Failed to find frames in path: " + folder + "/frame%4d.jpg" << endl;
+		movieFramesAllocated = false;
 	}
 }
 
@@ -256,11 +240,15 @@ void testApp::keyPressed(int key) {
 
 void testApp::keyReleased(int key) {
 	switch (key) {
+		case ' ':
+			showHud = !showHud;
+			break;
+			
 		case 'r':
 			reverseTime = !reverseTime;
 			break;
 			
-		case ' ':
+		case 'w':
 			writeDistorted();
 			break;
 		
@@ -285,6 +273,26 @@ void testApp::keyReleased(int key) {
 			if (recording) cout << "Recording!!" << endl;
 			else cout << "Stopped recording." << endl;
 			break;
+		
+		case '0':
+			clearMovieFrames();
+			break;
+		
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			key -= 48;
+			if (key - 1 < inputNames.size()) {
+				clearMovieFrames();
+				readFolderFrames(inputNames[key - 1]);
+			}
+			break;
 	}
 }
 
@@ -297,7 +305,8 @@ void testApp::mouseDragged(int x, int y, int button) {
 void testApp::mousePressed(int x, int y, int button) {
 }
 
-void testApp::mouseReleased(int x, int y, int button) {}
+void testApp::mouseReleased(int x, int y, int button) {
+}
 
 void testApp::windowResized(int w, int h) {
 }

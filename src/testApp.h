@@ -14,10 +14,10 @@ public:
 	void exit();
 	
 	void initMask();
-	void readMovieFrames(string);
 	void readFolderFrames(string);
-	void writeDistorted();
+	void clearMovieFrames();
 	
+	void writeDistorted();
 	void calculateDrawSize();
 	
 	void keyPressed(int key);
@@ -39,9 +39,6 @@ public:
 	
 	unsigned char* kinectPixels;
 	
-	vector<unsigned char*> frames;
-	ofImage frame;
-	
 	unsigned char* maskPixels;
 	unsigned short int* maskPixelsDetail;
 	ofPixels maskOfp;
@@ -60,11 +57,18 @@ public:
 	int drawWidth;
 	int drawHeight;
 	
+	bool movieFramesAllocated;
 	bool maskInitialized;
-	bool gotKinectFrame;
+	
+	bool showHud;
 	bool showMask;
 	bool reverseTime;
 	bool recording;
+	
+	vector<string> inputNames;
+	unsigned char* inputPixels;
+	
+	ofTrueTypeFont font;
 	
 	int filenameIndex;
 };
