@@ -42,6 +42,9 @@ void testApp::setup() {
 	
 	distorted.allocate(screenWidth, screenHeight, OF_IMAGE_COLOR);
 	
+	frameCount = 0;
+	frameWidth = kinect.width;
+	frameHeight = kinect.height;
 	calculateDrawSize();
 	
 	ofBackground(0);
@@ -115,18 +118,20 @@ void testApp::update() {
 			ghostPixels = ghostOfp.getPixels();
 		}
 		
-		for (int x = 0; x < frameWidth; x++) {
-			for (int y = 0; y < frameHeight; y++) {
-				// Horizontal flip.
-				int frameIndex = maskPixels[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
-				frameIndex = max(0, min(frameCount-1, frameIndex));
-				if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
-				
-				for (int c = 0; c < 3; c++) {
-					int pixelIndex = y * frameWidth * 3 + x * 3 + c;
-					distortedPixels[pixelIndex] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + pixelIndex];
-					if (showGhost) {
-						distortedPixels[pixelIndex] = MIN(255, distortedPixels[pixelIndex] + 20 * ghostPixels[y * frameWidth + (frameWidth - x - 1)] / 255);
+		if (movieFramesAllocated) {
+			for (int x = 0; x < frameWidth; x++) {
+				for (int y = 0; y < frameHeight; y++) {
+					// Horizontal flip.
+					int frameIndex = maskPixels[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
+					frameIndex = max(0, min(frameCount-1, frameIndex));
+					if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
+					
+					for (int c = 0; c < 3; c++) {
+						int pixelIndex = y * frameWidth * 3 + x * 3 + c;
+						distortedPixels[pixelIndex] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + pixelIndex];
+						if (showGhost) {
+							distortedPixels[pixelIndex] = MIN(255, distortedPixels[pixelIndex] + 20 * ghostPixels[y * frameWidth + (frameWidth - x - 1)] / 255);
+						}
 					}
 				}
 			}
@@ -138,12 +143,12 @@ void testApp::draw() {
 	ofBackground(0);
 	ofSetColor(255, 255, 255);
 	
+	if (showMask) {
+		mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
+		mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+	}
 	if (movieFramesAllocated) {
-		if (showMask) {
-			mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
-			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-		}
-		else {
+		if (!showMask) {
 			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
 			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
@@ -214,8 +219,9 @@ void testApp::clearMovieFrames() {
 		delete[] distortedPixels;
 		
 		frameCount = 0;
-		frameWidth = 0;
-		frameHeight = 0;
+		frameWidth = kinect.width;
+		frameHeight = kinect.height;
+		calculateDrawSize();
 		
 		movieFramesAllocated = false;
 	}
