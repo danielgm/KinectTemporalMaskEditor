@@ -9,8 +9,9 @@ void testApp::setup() {
 	kinect.init(false, false);
 	kinect.open();
 	
+	kinectAngle = 0;
 	ofSetFrameRate(60);
-	kinect.setCameraTiltAngle(0);
+	kinect.setCameraTiltAngle(kinectAngle);
 	
 	movieFramesAllocated = false;
 	maskInitialized = false;
@@ -327,6 +328,18 @@ void testApp::keyReleased(int key) {
 				recordingPath = "";
 				recordingImageIndex = 0;
 			}
+			break;
+			
+		case '[':
+			kinectAngle -= 0.5;
+			kinect.setCameraTiltAngle(kinectAngle);
+			cout << "Tilt angle: " << kinectAngle << endl;
+			break;
+			
+		case ']':
+			kinectAngle += 0.5;
+			kinect.setCameraTiltAngle(kinectAngle);
+			cout << "Tilt angle: " << kinectAngle << endl;
 			break;
 		
 		case '0':

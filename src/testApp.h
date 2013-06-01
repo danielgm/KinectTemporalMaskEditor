@@ -46,6 +46,7 @@ public:
 	int fadeRate;
 	
 	unsigned char* kinectPixels;
+	float kinectAngle;
 	
 	unsigned char* maskPixels;
 	unsigned short int* maskPixelsDetail;
