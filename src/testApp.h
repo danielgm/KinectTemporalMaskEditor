@@ -82,7 +82,9 @@ public:
 	string credit;
 	unsigned char* inputPixels;
 	
-	ofTrueTypeFont font;
+	ofTrueTypeFont hudFont;
+	ofTrueTypeFont messageFont;
+	ofTrueTypeFont creditFont;
 	
 	string recordingPath;
 	int recordingImageIndex;

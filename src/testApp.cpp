@@ -22,7 +22,9 @@ void testApp::setup() {
 	reverseTime = true;
 	recording = false;
 	
-	font.loadFont("verdana.ttf", 16);
+	hudFont.loadFont("verdana.ttf", 16);
+	messageFont.loadFont("verdana.ttf", 54);
+	creditFont.loadFont("verdana.ttf", 16);
 	
 	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
 	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
@@ -157,7 +159,7 @@ void testApp::draw() {
 		for (int i = 0; i < MIN(9, inputClips.size()); i++) {
 			str << "(" << (i + 1) << ") " << inputClips.at(i).title << endl;
 		}
-		font.drawString(str.str(), 32, 32);
+		hudFont.drawString(str.str(), 32, 32);
 		str.str(std::string());
 		
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
@@ -170,12 +172,12 @@ void testApp::draw() {
 			<< "([/]) Tilt angle: " << kinectAngle << endl
 			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 			<< "(ESC) Quit" << endl;
-		font.drawString(str.str(), 32, 552);
+		hudFont.drawString(str.str(), 32, 552);
 		str.str(std::string());
 	}
 	
 	ofSetColor(194);
-	font.drawString(credit, 32, screenHeight - 20);
+	creditFont.drawString(credit, 32, screenHeight - 20);
 }
 
 void testApp::exit() {
