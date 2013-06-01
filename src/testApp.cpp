@@ -21,15 +21,17 @@ void testApp::setup() {
 	showGhost = true;
 	reverseTime = true;
 	recording = false;
+	loading = false;
 	
 	hudFont.loadFont("verdana.ttf", 16);
 	messageFont.loadFont("verdana.ttf", 54);
+	submessageFont.loadFont("verdana.ttf", 24);
 	creditFont.loadFont("verdana.ttf", 16);
 	
 	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
 	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
-	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day. Proces");
-	addInputClip("Shuttle Ascent", "shascenthd_retimed", "Footage courtesy of NASA");
+	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day. Retimed by Darren DeCoursey.");
+	addInputClip("Shuttle Ascent", "shascenthd_retimed", "Footage courtesy of NASA. Retimed by Darren DeCoursey.");
 	
 	nearThreshold = 214;
 	farThreshold = 164;
@@ -177,58 +179,28 @@ void testApp::draw() {
 		str.str(std::string());
 	}
 	
-	ofSetColor(194);
-	creditFont.drawString(credit, 32, screenHeight - 20);
+	if (loading) {
+		ofSetColor(255);
+		string message = "Loading";
+		messageFont.drawString(message,
+							   (screenWidth - messageFont.stringWidth(message)) / 2,
+							   (screenHeight - messageFont.stringHeight(message)) / 2);
+		
+		stringstream str;
+		str << floor((float)loader.getFramesLoaded() / loader.getFrameCount() * 100) << '%';
+		string submessage = str.str();
+		submessageFont.drawString(submessage,
+								  (screenWidth - submessageFont.stringWidth(submessage)) / 2,
+								  (screenHeight + messageFont.stringHeight(message)) / 2 + 10);
+	}
+	else {
+		ofSetColor(194);
+		creditFont.drawString(credit, 32, screenHeight - 20);
+	}
 }
 
 void testApp::exit() {
 	clearMovieFrames();
-}
-
-void testApp::readFolderFrames(string folder) {
-	ofFile file;
-	ofImage image;
-	unsigned char* copyPixels;
-	
-	frameCount = 0;
-	frameWidth = 0;
-	frameHeight = 0;
-	
-	char indexString[5];
-	sprintf(indexString, "%04d", frameCount + 1);
-	while (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
-		frameCount++;
-		sprintf(indexString, "%04d", frameCount + 1);
-	}
-	
-	if (frameCount <= 0) return;
-	
-	// Determine image size from the first frame.
-	image.loadImage(folder + "/frame0001.jpg");
-	frameWidth = image.width;
-	frameHeight = image.height;
-	calculateDrawSize();
-	
-	if (frameWidth <= 0 || frameHeight <= 0) return;
-	
-	cout << "Loading " << frameCount << " frames at " << frameWidth << "x" << frameHeight << "... ";
-	
-	inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
-	for (int i = 0; i < frameCount; i++) {
-		sprintf(indexString, "%04d", i + 1);
-		image.loadImage(folder + "/frame" + indexString + ".jpg");
-		
-		copyPixels = image.getPixels();
-		for (int j = 0; j < frameWidth * frameHeight * 3; j++) {
-			unsigned char c = copyPixels[j];
-			inputPixels[i * frameWidth * frameHeight * 3 + j] = c;
-		}
-	}
-	
-	cout << "done." << endl;
-	
-	distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
-	movieFramesAllocated = true;
 }
 
 void testApp::clearMovieFrames() {
@@ -363,8 +335,20 @@ void testApp::keyReleased(int key) {
 			key -= 48;
 			if (key - 1 < inputClips.size()) {
 				clearMovieFrames();
-				readFolderFrames(inputClips.at(key - 1).path);
+				
+				loader.load(inputClips.at(key - 1).path);
+				
+				frameCount = loader.getFrameCount();
+				frameWidth = loader.getFrameWidth();
+				frameHeight = loader.getFrameHeight();
+				inputPixels = loader.getPixels();
+				
+				calculateDrawSize();
+				
+				distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
+				
 				credit = inputClips.at(key - 1).credit;
+				loading = true;
 			}
 			break;
 	}
@@ -386,6 +370,11 @@ void testApp::windowResized(int w, int h) {
 }
 
 void testApp::gotMessage(ofMessage msg) {
+	cout << "gotMessage(" + msg.message + ")" << endl;
+	if (msg.message == "loaded") {
+		movieFramesAllocated = true;
+		loading = false;
+	}
 }
 
 void testApp::dragEvent(ofDragInfo dragInfo) {

@@ -7,6 +7,8 @@
 #include "time.h"
 #include "vector.h"
 
+#include "LoadingThread.h"
+
 struct inputClip {
 	string title;
 	string path;
@@ -77,13 +79,16 @@ public:
 	bool showGhost;
 	bool reverseTime;
 	bool recording;
+	bool loading;
 	
+	LoadingThread loader;
 	vector<inputClip> inputClips;
 	string credit;
 	unsigned char* inputPixels;
 	
 	ofTrueTypeFont hudFont;
 	ofTrueTypeFont messageFont;
+	ofTrueTypeFont submessageFont;
 	ofTrueTypeFont creditFont;
 	
 	string recordingPath;
