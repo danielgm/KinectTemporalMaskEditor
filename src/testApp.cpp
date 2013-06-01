@@ -22,7 +22,7 @@ void testApp::setup() {
 	reverseTime = true;
 	recording = false;
 	
-	font.loadFont("verdana.ttf", 20);
+	font.loadFont("verdana.ttf", 16);
 	
 	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
 	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
@@ -154,7 +154,7 @@ void testApp::draw() {
 		stringstream str;
 		
 		str << "(0) Clear frames." << endl;
-		for (int i = 0; i < inputClips.size(); i++) {
+		for (int i = 0; i < MIN(9, inputClips.size()); i++) {
 			str << "(" << (i + 1) << ") " << inputClips.at(i).title << endl;
 		}
 		font.drawString(str.str(), 32, 32);
@@ -170,11 +170,12 @@ void testApp::draw() {
 			<< "([/]) Tilt angle: " << kinectAngle << endl
 			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 			<< "(ESC) Quit" << endl;
-		font.drawString(str.str(), 32, 652);
+		font.drawString(str.str(), 32, 552);
 		str.str(std::string());
 	}
 	
-	font.drawString(credit, 32, screenHeight - 24);
+	ofSetColor(194);
+	font.drawString(credit, 32, screenHeight - 20);
 }
 
 void testApp::exit() {
@@ -207,7 +208,7 @@ void testApp::readFolderFrames(string folder) {
 	
 	if (frameWidth <= 0 || frameHeight <= 0) return;
 	
-	cout << "Loading " << frameCount << " frames... ";
+	cout << "Loading " << frameCount << " frames at " << frameWidth << "x" << frameHeight << "... ";
 	
 	inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
 	for (int i = 0; i < frameCount; i++) {
