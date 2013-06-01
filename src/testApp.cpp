@@ -28,7 +28,8 @@ void testApp::setup() {
 	
 	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
 	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
-	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day");
+	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day. Proces");
+	addInputClip("Shuttle Ascent", "shascenthd_retimed", "Footage courtesy of NASA");
 	
 	nearThreshold = 214;
 	farThreshold = 164;
