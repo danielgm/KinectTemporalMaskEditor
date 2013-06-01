@@ -167,6 +167,7 @@ void testApp::draw() {
 			<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 			<< "(T) Display: " << (showMask ? "mask" : "output") << endl
 			<< "(J/K) Fade rate: " << fadeRate << endl
+			<< "([/]) Tilt angle: " << kinectAngle << endl
 			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 			<< "(ESC) Quit" << endl;
 		font.drawString(str.str(), 32, 652);
