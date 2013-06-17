@@ -47,17 +47,18 @@ void testApp::setup() {
 	frameHeight = kinect.height;
 	calculateDrawSize();
 	
-	ofBackground(0);
-}
+	// Init OpenCL from OpenGL context to enable GL-CL data sharing.
+	openCL.setup();
+	openCL.loadProgramFromFile("KinectTemporalMaskEditor.cl");
+	openCL.loadKernel("updateMask");
 
-void testApp::initMask() {
-	maskOfp.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-	maskPixels = maskOfp.getPixels();
+	// Image types only work with RGBA so using one-dimensional buffers instead.
+	depthBuffer = openCL.createBuffer(kinect.width * kinect.height);
+	maskBuffer = openCL.createBuffer(kinect.width * kinect.height);
+	maskDetailBuffer = openCL.createBuffer(kinect.width * kinect.height * 2);
 	
-	maskPixelsDetail = new unsigned short int[kinect.width * kinect.height];
-	for (int i = 0; i < kinect.width * kinect.height; i++) {
-		maskPixelsDetail[i] = 0;
-	}
+	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
+	maskDetailPixels = new unsigned short[kinect.width * kinect.height];
 }
 
 inputClip testApp::addInputClip(string title, string path, string credit) {
@@ -72,32 +73,19 @@ inputClip testApp::addInputClip(string title, string path, string credit) {
 void testApp::update() {
 	kinect.update();
 	if (kinect.isFrameNew()) {
-		if (!maskOfp.isAllocated()) {
-			initMask();
-		}
+		depthBuffer->write(kinect.getDepthPixels(), 0, kinect.width * kinect.height, true);
 		
-		kinectPixels = kinect.getDepthPixels();
-		for (int x = 0; x < kinect.width; x++) {
-			for (int y = 0; y < kinect.height; y++) {
-				int i = y * kinect.width + x;
-				
-				int kinectPixel = kinectPixels[y * kinect.width + x];
-				// Normalize between near and far thresholds.
-				kinectPixel = (max(farThreshold, min(nearThreshold, kinectPixel)) - farThreshold) * 255 / (nearThreshold - farThreshold);
-				
-				// Set the pixel in the recent mask.
-				kinectPixels[i] = kinectPixel;
-				
-				// Multiply by another 255 for the higher-res maskPixelsDetail[].
-				kinectPixel *= 255;
-				
-				// Take the brighter pixel and fade back to black slowly.
-				maskPixelsDetail[i] = kinectPixel > maskPixelsDetail[i] ? kinectPixel : max(0, maskPixelsDetail[i] - fadeRate);
-				
-				// Copy low-fi value to maskPixels[].
-				maskPixels[i] = maskPixelsDetail[i] / 255;
-			}
-		}
+		msa::OpenCLKernel *kernel = openCL.kernel("updateMask");
+		kernel->setArg(0, depthBuffer->getCLMem());
+		kernel->setArg(1, maskBuffer->getCLMem());
+		kernel->setArg(2, maskDetailBuffer->getCLMem());
+		kernel->setArg(3, nearThreshold);
+		kernel->setArg(4, farThreshold);
+		kernel->setArg(5, fadeRate);
+		kernel->run1D(kinect.width * kinect.height);
+		openCL.finish();
+		
+		maskBuffer->read(maskPixels, 0, kinect.width * kinect.height, false);
 		
 		maskOfp.setFromPixels(maskPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
 		if (frameWidth >= 1080) {
@@ -106,10 +94,9 @@ void testApp::update() {
 		}
 		maskOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
 		blur(maskOfp, maskOfp, 50);
-		maskPixels = maskOfp.getPixels();
 		
 		if (showGhost) {
-			ghostOfp.setFromPixels(kinectPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+			ghostOfp.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
 			if (frameWidth >= 1080) {
 				// HACK: Resizing straight to 1080p crashes.
 				ghostOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR);
@@ -122,7 +109,7 @@ void testApp::update() {
 			for (int x = 0; x < frameWidth; x++) {
 				for (int y = 0; y < frameHeight; y++) {
 					// Horizontal flip.
-					int frameIndex = maskPixels[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
+					int frameIndex = maskOfp.getPixels()[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
 					frameIndex = max(0, min(frameCount-1, frameIndex));
 					if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
 					
@@ -210,11 +197,6 @@ void testApp::exit() {
 
 void testApp::clearMovieFrames() {
 	if (movieFramesAllocated) {
-		if (maskOfp.isAllocated()) {
-			maskOfp.clear();
-			delete[] maskPixelsDetail;
-		}
-		
 		delete[] inputPixels;
 		delete[] distortedPixels;
 		

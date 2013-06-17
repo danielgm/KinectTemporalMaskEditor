@@ -6,6 +6,8 @@
 #include "ofxKinect.h"
 #include "time.h"
 #include "vector.h"
+#include "MSATimer.h"
+#include "MSAOpenCL.h"
 
 #include "LoadingThread.h"
 
@@ -40,18 +42,21 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 	
-	ofVideoPlayer player;
+	msa::OpenCL openCL;
 	ofxKinect kinect;
+	
+	msa::OpenCLBuffer *depthBuffer;
+	msa::OpenCLBuffer *maskBuffer;
+	msa::OpenCLBuffer *maskDetailBuffer;
 	
 	int nearThreshold;
 	int farThreshold;
 	int fadeRate;
 	
-	unsigned char* kinectPixels;
 	float kinectAngle;
 	
 	unsigned char* maskPixels;
-	unsigned short int* maskPixelsDetail;
+	unsigned short int* maskDetailPixels;
 	ofPixels maskOfp;
 	ofImage mask;
 	
