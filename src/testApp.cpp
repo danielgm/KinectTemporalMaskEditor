@@ -33,9 +33,9 @@ void testApp::setup() {
 	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day. Retimed by Darren DeCoursey.");
 	addInputClip("Shuttle Ascent", "shascenthd_retimed", "Footage courtesy of NASA. Retimed by Darren DeCoursey.");
 	
-	nearThreshold = 214;
-	farThreshold = 164;
-	fadeRate = 256;
+	nearThreshold = 0.8;
+	farThreshold = 0.6;
+	fadeRate = 0.005;
 	
 	screenWidth = ofGetScreenWidth();
 	screenHeight = ofGetScreenHeight();
@@ -52,12 +52,14 @@ void testApp::setup() {
 	openCL.loadProgramFromFile("KinectTemporalMaskEditor.cl");
 	openCL.loadKernel("updateMask");
 
-	// Image types only work with RGBA so using one-dimensional buffers instead.
-	depthBuffer = openCL.createBuffer(kinect.width * kinect.height);
-	maskBuffer = openCL.createBuffer(kinect.width * kinect.height);
-	maskDetailBuffer = openCL.createBuffer(kinect.width * kinect.height * 2);
+	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
+	maskBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
 	
-	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
+	maskDetailBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT16);
+	maskDetailBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT16);
+	activeMaskDetailBufferIndex = 0;
+	
+	maskPixels = new unsigned char[kinect.width * kinect.height];
 	maskDetailPixels = new unsigned short[kinect.width * kinect.height];
 }
 
@@ -73,20 +75,24 @@ inputClip testApp::addInputClip(string title, string path, string credit) {
 void testApp::update() {
 	kinect.update();
 	if (kinect.isFrameNew()) {
-		depthBuffer->write(kinect.getDepthPixels(), 0, kinect.width * kinect.height, true);
+		depthBuffer.write(kinect.getDepthPixels());
 		
 		msa::OpenCLKernel *kernel = openCL.kernel("updateMask");
-		kernel->setArg(0, depthBuffer->getCLMem());
-		kernel->setArg(1, maskBuffer->getCLMem());
-		kernel->setArg(2, maskDetailBuffer->getCLMem());
-		kernel->setArg(3, nearThreshold);
-		kernel->setArg(4, farThreshold);
-		kernel->setArg(5, fadeRate);
-		kernel->run1D(kinect.width * kinect.height);
+		kernel->setArg(0, depthBuffer.getCLMem());
+		kernel->setArg(1, maskDetailBuffer[activeMaskDetailBufferIndex].getCLMem());
+		kernel->setArg(2, maskBuffer.getCLMem());
+		kernel->setArg(3, maskDetailBuffer[1 - activeMaskDetailBufferIndex].getCLMem());
+		kernel->setArg(4, nearThreshold);
+		kernel->setArg(5, farThreshold);
+		kernel->setArg(6, fadeRate);
+		kernel->run2D(kinect.width, kinect.height);
+		
+		activeMaskDetailBufferIndex = 1 - activeMaskDetailBufferIndex;
+		
 		openCL.finish();
 		
-		maskBuffer->read(maskPixels, 0, kinect.width * kinect.height, false);
-		
+		maskBuffer.read(maskPixels);
+
 		maskOfp.setFromPixels(maskPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
 		if (frameWidth >= 1080) {
 			// HACK: Resizing straight to 1080p crashes.

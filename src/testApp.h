@@ -45,13 +45,14 @@ public:
 	msa::OpenCL openCL;
 	ofxKinect kinect;
 	
-	msa::OpenCLBuffer *depthBuffer;
-	msa::OpenCLBuffer *maskBuffer;
-	msa::OpenCLBuffer *maskDetailBuffer;
+	msa::OpenCLImage depthBuffer;
+	msa::OpenCLImage maskBuffer;
+	msa::OpenCLImage maskDetailBuffer[2];
+	int activeMaskDetailBufferIndex;
 	
-	int nearThreshold;
-	int farThreshold;
-	int fadeRate;
+	float nearThreshold;
+	float farThreshold;
+	float fadeRate;
 	
 	float kinectAngle;
 	
