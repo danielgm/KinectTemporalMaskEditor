@@ -39,9 +39,6 @@ public:
 		}
 		
 		if (frameCount <= 0) return;
-
-		/// DEBUG: Artificially limit the number of frames.
-		frameCount = 100;
 		
 		// Determine image size from the first frame.
 		image.loadImage(folder + "/frame0001.jpg");
