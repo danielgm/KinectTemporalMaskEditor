@@ -40,8 +40,6 @@ void testApp::setup() {
 	screenWidth = ofGetScreenWidth();
 	screenHeight = ofGetScreenHeight();
 	
-	distorted.allocate(screenWidth, screenHeight, OF_IMAGE_COLOR);
-	
 	frameCount = 0;
 	frameWidth = kinect.width;
 	frameHeight = kinect.height;
@@ -118,21 +116,21 @@ void testApp::draw() {
 	ofBackground(0);
 	ofSetColor(255, 255, 255);
 	
+	if (showMask) {
+		drawImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+	}
 	if (movieFramesAllocated) {
-		if (showMask) {
-			mask.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-		}
-		else {
+		if (!showMask) {
 			distortedBuffer.read(distortedPixels, true);
-			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
-			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+			drawImage.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
+			drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
 		
 		if (recording) {
 			string filenameIndexStr = ofToString(recordingImageIndex++);
 			while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
-			distorted.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
+			drawImage.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
 		}
 	}
 	
@@ -202,8 +200,8 @@ void testApp::clearMovieFrames() {
 }
 
 void testApp::writeDistorted() {
-	distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-	distorted.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
+	drawImage.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+	drawImage.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
 }
 
 void testApp::calculateDrawSize() {

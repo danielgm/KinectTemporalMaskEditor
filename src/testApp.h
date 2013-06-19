@@ -57,11 +57,8 @@ public:
 	float fadeRate;
 	
 	float kinectAngle;
-	
-	ofImage mask;
-	
+		
 	unsigned char* distortedPixels;
-	ofImage distorted;
 	
 	int frameCount;
 	int frameWidth;
@@ -70,6 +67,7 @@ public:
 	int screenWidth;
 	int screenHeight;
 	
+	ofImage drawImage;
 	int drawWidth;
 	int drawHeight;
 	
