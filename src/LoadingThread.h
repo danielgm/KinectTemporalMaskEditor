@@ -39,6 +39,9 @@ public:
 		}
 		
 		if (frameCount <= 0) return;
+
+		/// DEBUG: Artificially limit the number of frames.
+		frameCount = 100;
 		
 		// Determine image size from the first frame.
 		image.loadImage(folder + "/frame0001.jpg");
@@ -49,7 +52,8 @@ public:
 		
 		cout << "Loading " << frameCount << " frames at " << frameWidth << "x" << frameHeight << "... ";
 		
-		pixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
+		if (pixels) delete[] pixels;
+		pixels = new unsigned char[frameCount * frameWidth * frameHeight * 4];
 		
 		startThread();
 	}
@@ -94,9 +98,11 @@ private:
 			image.loadImage(folder + "/frame" + indexString + ".jpg");
 			
 			copyPixels = image.getPixels();
-			for (int i = 0; i < frameWidth * frameHeight * 3; i++) {
-				unsigned char c = copyPixels[i];
-				pixels[frameIndex * frameWidth * frameHeight * 3 + i] = c;
+			for (int i = 0; i < frameWidth * frameHeight; i++) {
+				pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
+				pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
+				pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
+				pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
 			}
 			
 			frameIndex++;

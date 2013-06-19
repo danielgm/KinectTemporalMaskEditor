@@ -46,9 +46,11 @@ public:
 	ofxKinect kinect;
 	
 	msa::OpenCLImage depthBuffer;
-	msa::OpenCLImage maskBuffer;
-	msa::OpenCLImage maskDetailBuffer[2];
-	int activeMaskDetailBufferIndex;
+	msa::OpenCLImage maskBuffer[2];
+	int activeMaskBuffer;
+	msa::OpenCLImage blurredBuffer;
+	msa::OpenCLImage inputBuffer;
+	msa::OpenCLImage distortedBuffer;
 	
 	float nearThreshold;
 	float farThreshold;
@@ -56,13 +58,7 @@ public:
 	
 	float kinectAngle;
 	
-	unsigned char* maskPixels;
-	unsigned short int* maskDetailPixels;
-	ofPixels maskOfp;
 	ofImage mask;
-	
-	ofPixels ghostOfp;
-	unsigned char* ghostPixels;
 	
 	unsigned char* distortedPixels;
 	ofImage distorted;

@@ -47,20 +47,17 @@ void testApp::setup() {
 	frameHeight = kinect.height;
 	calculateDrawSize();
 	
-	// Init OpenCL from OpenGL context to enable GL-CL data sharing.
 	openCL.setup();
 	openCL.loadProgramFromFile("KinectTemporalMaskEditor.cl");
 	openCL.loadKernel("updateMask");
+	openCL.loadKernel("temporalVideoMask");
+	openCL.loadKernel("msa_boxblur");
 
 	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
-	maskBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
 	
-	maskDetailBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT16);
-	maskDetailBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT16);
-	activeMaskDetailBufferIndex = 0;
-	
-	maskPixels = new unsigned char[kinect.width * kinect.height];
-	maskDetailPixels = new unsigned short[kinect.width * kinect.height];
+	maskBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
+	maskBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
+	activeMaskBuffer = 0;
 }
 
 inputClip testApp::addInputClip(string title, string path, string credit) {
@@ -75,59 +72,44 @@ inputClip testApp::addInputClip(string title, string path, string credit) {
 void testApp::update() {
 	kinect.update();
 	if (kinect.isFrameNew()) {
-		depthBuffer.write(kinect.getDepthPixels());
-		
-		msa::OpenCLKernel *kernel = openCL.kernel("updateMask");
-		kernel->setArg(0, depthBuffer.getCLMem());
-		kernel->setArg(1, maskDetailBuffer[activeMaskDetailBufferIndex].getCLMem());
-		kernel->setArg(2, maskBuffer.getCLMem());
-		kernel->setArg(3, maskDetailBuffer[1 - activeMaskDetailBufferIndex].getCLMem());
-		kernel->setArg(4, nearThreshold);
-		kernel->setArg(5, farThreshold);
-		kernel->setArg(6, fadeRate);
-		kernel->run2D(kinect.width, kinect.height);
-		
-		activeMaskDetailBufferIndex = 1 - activeMaskDetailBufferIndex;
-		
-		openCL.finish();
-		
-		maskBuffer.read(maskPixels);
-
-		maskOfp.setFromPixels(maskPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-		if (frameWidth >= 1080) {
-			// HACK: Resizing straight to 1080p crashes.
-			maskOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR);
-		}
-		maskOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
-		blur(maskOfp, maskOfp, 50);
-		
-		if (showGhost) {
-			ghostOfp.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-			if (frameWidth >= 1080) {
-				// HACK: Resizing straight to 1080p crashes.
-				ghostOfp.resize(frameWidth/2, frameHeight/2, OF_INTERPOLATE_NEAREST_NEIGHBOR);
-			}
-			ghostOfp.resize(frameWidth, frameHeight, OF_INTERPOLATE_NEAREST_NEIGHBOR);
-			ghostPixels = ghostOfp.getPixels();
-		}
-		
 		if (movieFramesAllocated) {
-			for (int x = 0; x < frameWidth; x++) {
-				for (int y = 0; y < frameHeight; y++) {
-					// Horizontal flip.
-					int frameIndex = maskOfp.getPixels()[y * frameWidth + (frameWidth - x - 1)] * frameCount / 255;
-					frameIndex = max(0, min(frameCount-1, frameIndex));
-					if (!reverseTime) frameIndex = frameCount - frameIndex - 1;
-					
-					for (int c = 0; c < 3; c++) {
-						int pixelIndex = y * frameWidth * 3 + x * 3 + c;
-						distortedPixels[pixelIndex] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + pixelIndex];
-						if (showGhost) {
-							distortedPixels[pixelIndex] = MIN(255, distortedPixels[pixelIndex] + 20 * ghostPixels[y * frameWidth + (frameWidth - x - 1)] / 255);
-						}
-					}
-				}
+			depthBuffer.write(kinect.getDepthPixels());
+			
+			msa::OpenCLKernel *kernel;
+
+			kernel = openCL.kernel("updateMask");
+			kernel->setArg(0, depthBuffer.getCLMem());
+			kernel->setArg(1, maskBuffer[activeMaskBuffer].getCLMem());
+			kernel->setArg(2, maskBuffer[1 - activeMaskBuffer].getCLMem());
+			kernel->setArg(3, nearThreshold);
+			kernel->setArg(4, farThreshold);
+			kernel->setArg(5, fadeRate);
+			kernel->run2D(kinect.width, kinect.height);
+			
+			activeMaskBuffer = 1 - activeMaskBuffer;
+			
+			openCL.finish();
+			
+			// Blur and resize. Might be better to separate these.
+			kernel = openCL.kernel("msa_boxblur");
+			for(int i = 0; i < 5; i++) {
+				cl_int offset = i * i / 2 + 1;
+				kernel->setArg(0, maskBuffer[activeMaskBuffer].getCLMem());
+				kernel->setArg(1, blurredBuffer.getCLMem());
+				kernel->setArg(2, offset);
+				kernel->run2D(frameWidth, frameHeight);
 			}
+			
+			openCL.finish();
+
+			kernel = openCL.kernel("temporalVideoMask");
+			kernel->setArg(0, inputBuffer.getCLMem());
+			kernel->setArg(1, blurredBuffer.getCLMem());
+			kernel->setArg(2, distortedBuffer.getCLMem());
+			kernel->setArg(3, reverseTime);
+			kernel->run2D(frameWidth, frameHeight);
+			
+			openCL.finish();
 		}
 	}
 }
@@ -136,13 +118,14 @@ void testApp::draw() {
 	ofBackground(0);
 	ofSetColor(255, 255, 255);
 	
-	if (showMask) {
-		mask.setFromPixels(maskPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
-		mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-	}
 	if (movieFramesAllocated) {
-		if (!showMask) {
-			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+		if (showMask) {
+			mask.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+			mask.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
+		}
+		else {
+			distortedBuffer.read(distortedPixels, true);
+			distorted.setFromPixels(distortedPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
 			distorted.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 		}
 		
@@ -195,6 +178,10 @@ void testApp::draw() {
 		ofSetColor(194);
 		creditFont.drawString(credit, 32, screenHeight - 20);
 	}
+	
+	ofSetColor(255, 0, 0);
+	ofNoFill();
+	ofCircle(480, 270, 10);
 }
 
 void testApp::exit() {
@@ -203,7 +190,6 @@ void testApp::exit() {
 
 void testApp::clearMovieFrames() {
 	if (movieFramesAllocated) {
-		delete[] inputPixels;
 		delete[] distortedPixels;
 		
 		frameCount = 0;
@@ -339,7 +325,9 @@ void testApp::keyReleased(int key) {
 				
 				calculateDrawSize();
 				
-				distortedPixels = new unsigned char[frameWidth * frameHeight * 3];
+				blurredBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_R, CL_UNORM_INT8);
+				distortedBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_RGBA, CL_UNORM_INT8);
+				distortedPixels = new unsigned char[frameWidth * frameHeight * 4];
 				
 				credit = inputClips.at(key - 1).credit;
 				loading = true;
@@ -366,6 +354,13 @@ void testApp::windowResized(int w, int h) {
 void testApp::gotMessage(ofMessage msg) {
 	cout << "gotMessage(" + msg.message + ")" << endl;
 	if (msg.message == "loaded") {
+		cout << "Alloc: " << frameCount * frameWidth * frameHeight * 4 << " " << openCL.info.maxMemAllocSize << endl;
+		if (frameCount * frameWidth * frameHeight * 4 > openCL.info.maxMemAllocSize) {
+			cout << "Too many frames!" << endl;
+		}
+		
+		inputBuffer.initWithoutTexture(frameWidth, frameHeight, frameCount, CL_RGBA, CL_UNORM_INT8);
+		inputBuffer.write(inputPixels, true);
 		movieFramesAllocated = true;
 		loading = false;
 	}

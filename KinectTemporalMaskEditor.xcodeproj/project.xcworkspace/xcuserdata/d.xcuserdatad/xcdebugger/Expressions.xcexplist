@@ -3,6 +3,17 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "msa::OpenCLImage::write:MSAOpenCLImage.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "pOrigin[2]">
+            </PersistentString>
+            <PersistentString
+               value = "pRegion[0]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "testApp::addBrush:testApp.cpp">
          <PersistentStrings>
             <PersistentString
