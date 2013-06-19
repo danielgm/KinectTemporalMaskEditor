@@ -45,16 +45,16 @@ void testApp::setup() {
 	frameHeight = kinect.height;
 	calculateDrawSize();
 	
-	openCL.setup();
+	openCL.setup(CL_DEVICE_TYPE_CPU);
 	openCL.loadProgramFromFile("KinectTemporalMaskEditor.cl");
 	openCL.loadKernel("updateMask");
 	openCL.loadKernel("temporalVideoMask");
 	openCL.loadKernel("msa_boxblur");
 
-	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
+	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	
-	maskBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
-	maskBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_R, CL_UNORM_INT8);
+	maskBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
+	maskBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	activeMaskBuffer = 0;
 }
 
@@ -323,7 +323,7 @@ void testApp::keyReleased(int key) {
 				
 				calculateDrawSize();
 				
-				blurredBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_R, CL_UNORM_INT8);
+				blurredBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_A, CL_UNORM_INT8);
 				distortedBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_RGBA, CL_UNORM_INT8);
 				distortedPixels = new unsigned char[frameWidth * frameHeight * 4];
 				
@@ -352,11 +352,6 @@ void testApp::windowResized(int w, int h) {
 void testApp::gotMessage(ofMessage msg) {
 	cout << "gotMessage(" + msg.message + ")" << endl;
 	if (msg.message == "loaded") {
-		cout << "Alloc: " << frameCount * frameWidth * frameHeight * 4 << " " << openCL.info.maxMemAllocSize << endl;
-		if (frameCount * frameWidth * frameHeight * 4 > openCL.info.maxMemAllocSize) {
-			cout << "Too many frames!" << endl;
-		}
-		
 		inputBuffer.initWithoutTexture(frameWidth, frameHeight, frameCount, CL_RGBA, CL_UNORM_INT8);
 		inputBuffer.write(inputPixels, true);
 		movieFramesAllocated = true;

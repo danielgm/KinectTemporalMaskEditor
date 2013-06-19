@@ -27,7 +27,7 @@ __kernel void temporalVideoMask(read_only image3d_t input,
 								bool reverseTime) {
 	int2 coords2d = (int2)(get_global_id(0), get_global_id(1));
 	float4 m = read_imagef(mask, sampler, coords2d);
-	int4 coords3d = (int4)(get_global_id(0), get_global_id(1), (int)(m.x * get_image_depth(input)), 0);
+	int4 coords3d = (int4)(get_global_id(0), get_global_id(1), (int)(m.w * get_image_depth(input)), 0);
 	float4 d = read_imagef(input, sampler, coords3d);
 	//if (reverseTime) d = (float4)(1.0f, 1.0f, 1.0f, 1.0f) - d;
 	
