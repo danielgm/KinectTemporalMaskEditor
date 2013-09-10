@@ -57,7 +57,7 @@ public:
 	float fadeRate;
 	
 	float kinectAngle;
-		
+	
 	unsigned char* distortedPixels;
 	
 	int frameCount;

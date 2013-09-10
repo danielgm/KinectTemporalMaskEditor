@@ -3,13 +3,21 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "testApp::keyReleased:testApp.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "frameWidth">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "msa::OpenCLImage::write:MSAOpenCLImage.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "pOrigin[2]">
+               value = "pRegion[0]">
             </PersistentString>
             <PersistentString
-               value = "pRegion[0]">
+               value = "pOrigin[2]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

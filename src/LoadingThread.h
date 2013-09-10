@@ -33,7 +33,7 @@ public:
 		
 		ofFile file;
 		sprintf(indexString, "%04d", frameCount + 1);
-		while (file.doesFileExist(folder + "/frame" + indexString + ".jpg")) {
+		while (file.doesFileExist(folder + "/frame" + indexString + ".png")) {
 			frameCount++;
 			sprintf(indexString, "%04d", frameCount + 1);
 		}
@@ -41,7 +41,7 @@ public:
 		if (frameCount <= 0) return;
 		
 		// Determine image size from the first frame.
-		image.loadImage(folder + "/frame0001.jpg");
+		image.loadImage(folder + "/frame0001.png");
 		frameWidth = image.width;
 		frameHeight = image.height;
 		
@@ -92,7 +92,7 @@ private:
     void threadedFunction() {
 		while (isThreadRunning() && frameIndex < frameCount) {
 			sprintf(indexString, "%04d", frameIndex + 1);
-			image.loadImage(folder + "/frame" + indexString + ".jpg");
+			image.loadImage(folder + "/frame" + indexString + ".png");
 			
 			copyPixels = image.getPixels();
 			for (int i = 0; i < frameWidth * frameHeight; i++) {

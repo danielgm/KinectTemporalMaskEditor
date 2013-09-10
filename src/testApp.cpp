@@ -28,10 +28,11 @@ void testApp::setup() {
 	submessageFont.loadFont("verdana.ttf", 24);
 	creditFont.loadFont("verdana.ttf", 16);
 	
-	addInputClip("Cheetahs on the Edge", "cheetah/cheetah-s", "Footage courtesy of National Geographic");
-	addInputClip("Fire Tennis", "firetennis", "Footage courtesy of the Slow Mo Guys");
-	addInputClip("Raptor Strikes", "raptor_retimed", "Footage courtesy of Smarter Every Day. Retimed by Darren DeCoursey.");
-	addInputClip("Shuttle Ascent", "shascenthd_retimed", "Footage courtesy of NASA. Retimed by Darren DeCoursey.");
+	addInputClip("cols4", "cols4", "");
+	addInputClip("cols8", "cols8", "");
+	addInputClip("cols16", "cols16", "");
+	addInputClip("cols32", "cols32", "");
+	addInputClip("cols64", "cols64", "");
 	
 	nearThreshold = 0.8;
 	farThreshold = 0.6;
@@ -46,11 +47,11 @@ void testApp::setup() {
 	calculateDrawSize();
 	
 	openCL.setup(CL_DEVICE_TYPE_CPU);
-	openCL.loadProgramFromFile("KinectTemporalMaskEditor.cl");
+	openCL.loadProgramFromFile("VideoLoops.cl");
 	openCL.loadKernel("updateMask");
 	openCL.loadKernel("temporalVideoMask");
 	openCL.loadKernel("msa_boxblur");
-
+	
 	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	
 	maskBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
@@ -74,7 +75,7 @@ void testApp::update() {
 			depthBuffer.write(kinect.getDepthPixels());
 			
 			msa::OpenCLKernel *kernel;
-
+			
 			kernel = openCL.kernel("updateMask");
 			kernel->setArg(0, depthBuffer.getCLMem());
 			kernel->setArg(1, maskBuffer[activeMaskBuffer].getCLMem());
@@ -99,7 +100,7 @@ void testApp::update() {
 			}
 			
 			openCL.finish();
-
+			
 			kernel = openCL.kernel("temporalVideoMask");
 			kernel->setArg(0, inputBuffer.getCLMem());
 			kernel->setArg(1, blurredBuffer.getCLMem());
@@ -145,15 +146,15 @@ void testApp::draw() {
 		str.str(std::string());
 		
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
-			<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
-			<< "Frame count: " << frameCount << endl
-			<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
-			<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
-			<< "(T) Display: " << (showMask ? "mask" : "output") << endl
-			<< "(J/K) Fade rate: " << fadeRate << endl
-			<< "([/]) Tilt angle: " << kinectAngle << endl
-			<< "(M) Recording: " << (recording ? "yes" : "no") << endl
-			<< "(ESC) Quit" << endl;
+		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
+		<< "Frame count: " << frameCount << endl
+		<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
+		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
+		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
+		<< "(J/K) Fade rate: " << fadeRate << endl
+		<< "([/]) Tilt angle: " << kinectAngle << endl
+		<< "(M) Recording: " << (recording ? "yes" : "no") << endl
+		<< "(ESC) Quit" << endl;
 		hudFont.drawString(str.str(), 32, 552);
 		str.str(std::string());
 	}
@@ -253,7 +254,7 @@ void testApp::keyReleased(int key) {
 			if (fadeRate > 255 * 255) fadeRate = 255 * 255;
 			cout << "Fade rate: " << fadeRate << endl;
 			break;
-		
+			
 		case 'm':
 			recording = !recording;
 			if (recording) {
@@ -296,11 +297,11 @@ void testApp::keyReleased(int key) {
 			kinect.setCameraTiltAngle(kinectAngle);
 			cout << "Tilt angle: " << kinectAngle << endl;
 			break;
-		
+			
 		case '0':
 			clearMovieFrames();
 			break;
-		
+			
 		case '1':
 		case '2':
 		case '3':
