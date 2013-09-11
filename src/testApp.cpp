@@ -9,12 +9,9 @@ void testApp::setup() {
 	showHud = true;
 	showMask = false;
 	showGhost = true;
-	reverseTime = true;
 	recording = false;
 	
-	hudFont.loadFont("verdana.ttf", 16);
-	messageFont.loadFont("verdana.ttf", 54);
-	submessageFont.loadFont("verdana.ttf", 24);
+	hudFont.loadFont("verdana.ttf", 12);
 	
 	nearThreshold = 204;
 	farThreshold = 153;
@@ -88,8 +85,11 @@ void testApp::update() {
 		fastBlur(blurredPixels, frameWidth, frameHeight, 5);
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1) + frameOffset;
-			if (frameIndex >= frameCount) frameIndex -= frameCount;
+			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+			
+			frameIndex += frameOffset;
+			while (frameIndex >= frameCount) frameIndex -= frameCount;
+			
 			for (int c = 0; c < 4; c++) {
 				outputPixels[i * 4 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c] + kinectPixels[i] / 52;
 				
@@ -132,20 +132,15 @@ void testApp::draw() {
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 		<< "Frame count: " << frameCount << endl
 		<< "Memory: " << floor(frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
-		<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
 		<< "(J/K) Fade rate: " << fadeRate << endl
 		<< "([/]) Tilt angle: " << kinectAngle << endl
 		<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 		<< "(ESC) Quit" << endl;
-		hudFont.drawString(str.str(), 32, 552);
+		hudFont.drawString(str.str(), 32, 32);
 		str.str(std::string());
 	}
-	
-	ofSetColor(255, 0, 0);
-	ofNoFill();
-	ofCircle(480, 270, 10);
 }
 
 void testApp::exit() {
@@ -298,10 +293,6 @@ void testApp::keyReleased(int key) {
 	switch (key) {
 		case ' ':
 			showHud = !showHud;
-			break;
-			
-		case 'r':
-			reverseTime = !reverseTime;
 			break;
 			
 		case 'w':

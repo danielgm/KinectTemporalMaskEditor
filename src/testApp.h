@@ -66,12 +66,9 @@ public:
 	bool showHud;
 	bool showMask;
 	bool showGhost;
-	bool reverseTime;
 	bool recording;
 	
 	ofTrueTypeFont hudFont;
-	ofTrueTypeFont messageFont;
-	ofTrueTypeFont submessageFont;
 	
 	string recordingPath;
 	int recordingImageIndex;
