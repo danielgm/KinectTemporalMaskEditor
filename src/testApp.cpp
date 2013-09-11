@@ -84,7 +84,8 @@ void testApp::update() {
 		fastBlur(blurredPixels, frameWidth, frameHeight, 5);
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1) + frameOffset;
+			if (frameIndex >= frameCount) frameIndex -= frameCount;
 			for (int c = 0; c < 4; c++) {
 				outputPixels[i * 4 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
 			}
@@ -271,6 +272,13 @@ void testApp::fastBlur(unsigned char* pixels, int w, int h, int radius) {
 			yi+=w;
 		}
 	}
+	
+	delete[] r;
+	delete[] g;
+	delete[] b;
+	delete[] vmin;
+	delete[] vmax;
+	delete[] dv;
 }
 
 void testApp::keyPressed(int key) {
