@@ -14,102 +14,169 @@ void testApp::setup() {
 	kinect.setCameraTiltAngle(kinectAngle);
 	
 	movieFramesAllocated = false;
-	maskInitialized = false;
 	
 	showHud = true;
 	showMask = false;
 	showGhost = true;
 	reverseTime = true;
 	recording = false;
-	loading = false;
 	
 	hudFont.loadFont("verdana.ttf", 16);
 	messageFont.loadFont("verdana.ttf", 54);
 	submessageFont.loadFont("verdana.ttf", 24);
-	creditFont.loadFont("verdana.ttf", 16);
-	
-	addInputClip("cols4", "cols4", "");
-	addInputClip("cols8", "cols8", "");
-	addInputClip("cols16", "cols16", "");
-	addInputClip("cols32", "cols32", "");
-	addInputClip("cols64", "cols64", "");
 	
 	nearThreshold = 0.8;
 	farThreshold = 0.6;
 	fadeRate = 0.005;
 	
-	screenWidth = ofGetScreenWidth();
-	screenHeight = ofGetScreenHeight();
+	screenWidth = ofGetWindowWidth();
+	screenHeight = ofGetWindowHeight();
 	
-	frameCount = 0;
-	frameWidth = kinect.width;
-	frameHeight = kinect.height;
-	calculateDrawSize();
+	frameOffset = 0;
 	
-	openCL.setup(CL_DEVICE_TYPE_CPU);
+	openCL.setup();
 	openCL.loadProgramFromFile("VideoLoops.cl");
 	openCL.loadKernel("updateMask");
-	openCL.loadKernel("temporalVideoMask");
+	openCL.loadKernel("temporalVideoMask0");
+	openCL.loadKernel("temporalVideoMask1");
+	openCL.loadKernel("temporalVideoMask2");
+	openCL.loadKernel("temporalVideoMask3");
 	openCL.loadKernel("msa_boxblur");
 	
-	depthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
+	blurAmount = 3;
 	
+	frameCount = 0;
+	ofFile file;
+	while (file.doesFileExist("layer0/frame" + ofToString(frameCount + 1, 0, 4, '0') + ".png")) {
+		frameCount++;
+	}
+	
+	if (frameCount * NUM_LAYERS > openCL.info.maxReadImageArgs) {
+		cerr << "Too many frames! maxReadImageArgs=" << openCL.info.maxReadImageArgs << endl;
+		return;
+	}
+	
+	if (frameCount <= 0) {
+		cerr << "Frames not found" << endl;
+		cerr << "layer0/frame" + ofToString(frameCount + 1, 0, 4, '0') + ".png" << endl;
+		return;
+	}
+	
+	// Determine image size from the first frame.
+	ofImage image;
+	image.loadImage("layer0/frame0001.png");
+	frameWidth = image.width;
+	frameHeight = image.height;
+	calculateDrawSize();
+	
+	cout << "Alloc: " << frameCount * frameWidth * frameHeight * 4 << " " << openCL.info.maxMemAllocSize << endl;
+	if (frameCount * frameWidth * frameHeight * 4 > openCL.info.maxMemAllocSize) {
+		cerr << "Too many pixels/frames! frameCount * w * h * 4 bytes must be less than maxMemAllocSize=" << openCL.info.maxMemAllocSize << endl;
+		return;
+	}
+	
+	blurredBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_A, CL_UNORM_INT8);
+	distortedBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_RGBA, CL_UNORM_INT8);
+	blurredPixels = new unsigned char[frameWidth * frameHeight * 1];
+	distortedPixels = new unsigned char[frameWidth * frameHeight * 4];
+	
+	kinectDepthBuffer.initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	maskBuffer[0].initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	maskBuffer[1].initWithoutTexture(kinect.width, kinect.height, 1, CL_A, CL_UNORM_INT8);
 	activeMaskBuffer = 0;
-}
-
-inputClip testApp::addInputClip(string title, string path, string credit) {
-	inputClip clip;
-	clip.title = title;
-	clip.path = path;
-	clip.credit = credit;
-	inputClips.push_back(clip);
-	return clip;
+	
+	cout << "Loading " << frameCount << " frames at " << frameWidth << "x" << frameHeight << "... ";
+	
+	unsigned char* inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 4];
+	for (int layer = 0; layer < NUM_LAYERS; layer++) {
+		inputBuffer[layer].initWithoutTexture(frameWidth, frameHeight, frameCount, CL_RGBA, CL_UNORM_INT8);
+		for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+			image.loadImage("layer" + ofToString(layer) + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
+			
+			unsigned char* copyPixels = image.getPixels();
+			for (int i = 0; i < frameWidth * frameHeight; i++) {
+				inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
+				inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
+				inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
+				inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
+			}
+		}
+		inputBuffer[layer].write(inputPixels, true);
+	}
+	delete[] inputPixels;
+	
+	movieFramesAllocated = true;
+	previousTime = ofGetSystemTime();
 }
 
 void testApp::update() {
+	if (frameCount > 0) {
+		// Increment the frame offset at the given FPS.
+		long now = ofGetSystemTime();
+		int t = now - previousTime;
+		int d = floor(t / 1000.0 * frameOffsetFps);
+		frameOffset += d;
+		while (frameOffset > frameCount) frameOffset -= frameCount;
+		previousTime = now + floor(d * 1000.0 / frameOffsetFps) - t;
+	}
+	
 	kinect.update();
-	if (kinect.isFrameNew()) {
-		if (movieFramesAllocated) {
-			depthBuffer.write(kinect.getDepthPixels());
-			
-			msa::OpenCLKernel *kernel;
-			
-			kernel = openCL.kernel("updateMask");
-			kernel->setArg(0, depthBuffer.getCLMem());
-			kernel->setArg(1, maskBuffer[activeMaskBuffer].getCLMem());
-			kernel->setArg(2, maskBuffer[1 - activeMaskBuffer].getCLMem());
-			kernel->setArg(3, nearThreshold);
-			kernel->setArg(4, farThreshold);
-			kernel->setArg(5, fadeRate);
-			kernel->run2D(kinect.width, kinect.height);
+	if (kinect.isFrameNew() && movieFramesAllocated) {
+		kinectDepthBuffer.write(kinect.getDepthPixels());
+		
+		msa::OpenCLKernel *kernel;
+		
+		kernel = openCL.kernel("updateMask");
+		kernel->setArg(0, kinectDepthBuffer.getCLMem());
+		kernel->setArg(1, maskBuffer[activeMaskBuffer].getCLMem());
+		kernel->setArg(2, maskBuffer[1 - activeMaskBuffer].getCLMem());
+		kernel->setArg(3, nearThreshold);
+		kernel->setArg(4, farThreshold);
+		kernel->setArg(5, fadeRate);
+		kernel->run2D(kinect.width, kinect.height);
+		
+		activeMaskBuffer = 1 - activeMaskBuffer;
+		openCL.finish();
+		
+		// Blur and resize. Might be better to separate these.
+		kernel = openCL.kernel("msa_boxblur");
+		for(int i = 0; i < blurAmount; i++) {
+			cl_int offset = i * i / 2 + 1;
+			kernel->setArg(0, maskBuffer[activeMaskBuffer].getCLMem());
+			kernel->setArg(1, maskBuffer[1 - activeMaskBuffer].getCLMem());
+			kernel->setArg(2, offset);
+			kernel->run2D(frameWidth, frameHeight);
 			
 			activeMaskBuffer = 1 - activeMaskBuffer;
-			
 			openCL.finish();
-			
-			// Blur and resize. Might be better to separate these.
-			kernel = openCL.kernel("msa_boxblur");
-			for(int i = 0; i < 5; i++) {
-				cl_int offset = i * i / 2 + 1;
-				kernel->setArg(0, maskBuffer[activeMaskBuffer].getCLMem());
-				kernel->setArg(1, blurredBuffer.getCLMem());
-				kernel->setArg(2, offset);
-				kernel->run2D(frameWidth, frameHeight);
-			}
-			
-			openCL.finish();
-			
-			kernel = openCL.kernel("temporalVideoMask");
-			kernel->setArg(0, inputBuffer.getCLMem());
+		}
+		
+		// One last blur into the blurred buffer.
+		cl_int offset = blurAmount * blurAmount / 2 + 1;
+		kernel->setArg(0, maskBuffer[activeMaskBuffer].getCLMem());
+		kernel->setArg(1, blurredBuffer.getCLMem());
+		kernel->setArg(2, offset);
+		kernel->run2D(frameWidth, frameHeight);
+		
+		openCL.finish();
+		
+		float normalizedFrameOffset = float(frameOffset) / frameCount;
+		
+		/// DEBUG: Getting rid of frame offset for now.
+		normalizedFrameOffset = 0;
+		
+		for (int layer = 0; layer < NUM_LAYERS; layer++) {
+			kernel = openCL.kernel("temporalVideoMask" + ofToString(layer));
+			kernel->setArg(0, inputBuffer[layer].getCLMem());
 			kernel->setArg(1, blurredBuffer.getCLMem());
 			kernel->setArg(2, distortedBuffer.getCLMem());
-			kernel->setArg(3, reverseTime);
+			kernel->setArg(3, normalizedFrameOffset);
 			kernel->run2D(frameWidth, frameHeight);
 			
 			openCL.finish();
 		}
+		
+		openCL.finish();
 	}
 }
 
@@ -118,7 +185,8 @@ void testApp::draw() {
 	ofSetColor(255, 255, 255);
 	
 	if (showMask) {
-		drawImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+		blurredBuffer.read(blurredPixels, true);
+		drawImage.setFromPixels(blurredPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
 		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 	}
 	if (movieFramesAllocated) {
@@ -138,13 +206,6 @@ void testApp::draw() {
 	if (showHud) {
 		stringstream str;
 		
-		str << "(0) Clear frames." << endl;
-		for (int i = 0; i < MIN(9, inputClips.size()); i++) {
-			str << "(" << (i + 1) << ") " << inputClips.at(i).title << endl;
-		}
-		hudFont.drawString(str.str(), 32, 32);
-		str.str(std::string());
-		
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 		<< "Frame count: " << frameCount << endl
@@ -159,45 +220,14 @@ void testApp::draw() {
 		str.str(std::string());
 	}
 	
-	if (loading) {
-		ofSetColor(255);
-		string message = "Loading";
-		messageFont.drawString(message,
-							   (screenWidth - messageFont.stringWidth(message)) / 2,
-							   (screenHeight - messageFont.stringHeight(message)) / 2);
-		
-		stringstream str;
-		str << floor((float)loader.getFramesLoaded() / loader.getFrameCount() * 100) << '%';
-		string submessage = str.str();
-		submessageFont.drawString(submessage,
-								  (screenWidth - submessageFont.stringWidth(submessage)) / 2,
-								  (screenHeight + messageFont.stringHeight(message)) / 2 + 10);
-	}
-	else {
-		ofSetColor(194);
-		creditFont.drawString(credit, 32, screenHeight - 20);
-	}
-	
 	ofSetColor(255, 0, 0);
 	ofNoFill();
 	ofCircle(480, 270, 10);
 }
 
 void testApp::exit() {
-	clearMovieFrames();
-}
-
-void testApp::clearMovieFrames() {
-	if (movieFramesAllocated) {
-		delete[] distortedPixels;
-		
-		frameCount = 0;
-		frameWidth = kinect.width;
-		frameHeight = kinect.height;
-		calculateDrawSize();
-		
-		movieFramesAllocated = false;
-	}
+	delete[] distortedPixels;
+	delete[] blurredPixels;
 }
 
 void testApp::writeDistorted() {
@@ -297,41 +327,6 @@ void testApp::keyReleased(int key) {
 			kinect.setCameraTiltAngle(kinectAngle);
 			cout << "Tilt angle: " << kinectAngle << endl;
 			break;
-			
-		case '0':
-			clearMovieFrames();
-			break;
-			
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			key -= 48;
-			if (key - 1 < inputClips.size()) {
-				clearMovieFrames();
-				
-				loader.load(inputClips.at(key - 1).path);
-				
-				frameCount = loader.getFrameCount();
-				frameWidth = loader.getFrameWidth();
-				frameHeight = loader.getFrameHeight();
-				inputPixels = loader.getPixels();
-				
-				calculateDrawSize();
-				
-				blurredBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_A, CL_UNORM_INT8);
-				distortedBuffer.initWithoutTexture(frameWidth, frameHeight, 1, CL_RGBA, CL_UNORM_INT8);
-				distortedPixels = new unsigned char[frameWidth * frameHeight * 4];
-				
-				credit = inputClips.at(key - 1).credit;
-				loading = true;
-			}
-			break;
 	}
 }
 
@@ -350,15 +345,7 @@ void testApp::mouseReleased(int x, int y, int button) {
 void testApp::windowResized(int w, int h) {
 }
 
-void testApp::gotMessage(ofMessage msg) {
-	cout << "gotMessage(" + msg.message + ")" << endl;
-	if (msg.message == "loaded") {
-		inputBuffer.initWithoutTexture(frameWidth, frameHeight, frameCount, CL_RGBA, CL_UNORM_INT8);
-		inputBuffer.write(inputPixels, true);
-		movieFramesAllocated = true;
-		loading = false;
-	}
-}
+void testApp::gotMessage(ofMessage msg) {}
 
 void testApp::dragEvent(ofDragInfo dragInfo) {
 }

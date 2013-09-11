@@ -9,13 +9,7 @@
 #include "MSATimer.h"
 #include "MSAOpenCL.h"
 
-#include "LoadingThread.h"
-
-struct inputClip {
-	string title;
-	string path;
-	string credit;
-};
+#define NUM_LAYERS 4
 
 class testApp : public ofBaseApp {
 public:
@@ -23,11 +17,6 @@ public:
 	void update();
 	void draw();
 	void exit();
-	
-	void initMask();
-	inputClip addInputClip(string title, string path, string credit);
-	void readFolderFrames(string);
-	void clearMovieFrames();
 	
 	void writeDistorted();
 	void calculateDrawSize();
@@ -45,11 +34,11 @@ public:
 	msa::OpenCL openCL;
 	ofxKinect kinect;
 	
-	msa::OpenCLImage depthBuffer;
+	msa::OpenCLImage kinectDepthBuffer;
 	msa::OpenCLImage maskBuffer[2];
 	int activeMaskBuffer;
 	msa::OpenCLImage blurredBuffer;
-	msa::OpenCLImage inputBuffer;
+	msa::OpenCLImage inputBuffer[NUM_LAYERS];
 	msa::OpenCLImage distortedBuffer;
 	
 	float nearThreshold;
@@ -59,6 +48,7 @@ public:
 	float kinectAngle;
 	
 	unsigned char* distortedPixels;
+	unsigned char* blurredPixels;
 	
 	int frameCount;
 	int frameWidth;
@@ -72,25 +62,23 @@ public:
 	int drawHeight;
 	
 	bool movieFramesAllocated;
-	bool maskInitialized;
 	
 	bool showHud;
 	bool showMask;
 	bool showGhost;
 	bool reverseTime;
 	bool recording;
-	bool loading;
-	
-	LoadingThread loader;
-	vector<inputClip> inputClips;
-	string credit;
-	unsigned char* inputPixels;
 	
 	ofTrueTypeFont hudFont;
 	ofTrueTypeFont messageFont;
 	ofTrueTypeFont submessageFont;
-	ofTrueTypeFont creditFont;
 	
 	string recordingPath;
 	int recordingImageIndex;
+	
+	int frameOffset;
+	float frameOffsetFps = 30;
+	long previousTime;
+	
+	int blurAmount;
 };
