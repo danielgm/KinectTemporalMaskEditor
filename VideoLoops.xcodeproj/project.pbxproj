@@ -7,12 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		03162C8A17682E060067180E /* MSAOpenCL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7317682E060067180E /* MSAOpenCL.cpp */; };
-		03162C8B17682E060067180E /* MSAOpenCLBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7517682E060067180E /* MSAOpenCLBuffer.cpp */; };
-		03162C8C17682E060067180E /* MSAOpenCLImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7717682E060067180E /* MSAOpenCLImage.cpp */; };
-		03162C8D17682E060067180E /* MSAOpenCLKernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7A17682E060067180E /* MSAOpenCLKernel.cpp */; };
-		03162C8E17682E060067180E /* MSAOpenCLMemoryObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7C17682E060067180E /* MSAOpenCLMemoryObject.cpp */; };
-		03162C8F17682E060067180E /* MSAOpenCLProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03162C7E17682E060067180E /* MSAOpenCLProgram.cpp */; };
 		03162C9D1768447F0067180E /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03162C9C1768447F0067180E /* OpenCL.framework */; };
 		03222C791723333E00E00BF1 /* Calibration.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03222C221723333E00E00BF1 /* Calibration.cpp */; };
 		03222C7A1723333E00E00BF1 /* ContourFinder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03222C231723333E00E00BF1 /* ContourFinder.cpp */; };
@@ -93,25 +87,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		03162C7317682E060067180E /* MSAOpenCL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCL.cpp; sourceTree = "<group>"; };
-		03162C7417682E060067180E /* MSAOpenCL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCL.h; sourceTree = "<group>"; };
-		03162C7517682E060067180E /* MSAOpenCLBuffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCLBuffer.cpp; sourceTree = "<group>"; };
-		03162C7617682E060067180E /* MSAOpenCLBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLBuffer.h; sourceTree = "<group>"; };
-		03162C7717682E060067180E /* MSAOpenCLImage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCLImage.cpp; sourceTree = "<group>"; };
-		03162C7817682E060067180E /* MSAOpenCLImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLImage.h; sourceTree = "<group>"; };
-		03162C7917682E060067180E /* MSAOpenCLImagePingPong.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLImagePingPong.h; sourceTree = "<group>"; };
-		03162C7A17682E060067180E /* MSAOpenCLKernel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCLKernel.cpp; sourceTree = "<group>"; };
-		03162C7B17682E060067180E /* MSAOpenCLKernel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLKernel.h; sourceTree = "<group>"; };
-		03162C7C17682E060067180E /* MSAOpenCLMemoryObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCLMemoryObject.cpp; sourceTree = "<group>"; };
-		03162C7D17682E060067180E /* MSAOpenCLMemoryObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLMemoryObject.h; sourceTree = "<group>"; };
-		03162C7E17682E060067180E /* MSAOpenCLProgram.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAOpenCLProgram.cpp; sourceTree = "<group>"; };
-		03162C7F17682E060067180E /* MSAOpenCLProgram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLProgram.h; sourceTree = "<group>"; };
-		03162C8017682E060067180E /* MSAOpenCLTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAOpenCLTypes.h; sourceTree = "<group>"; };
-		03162C9117682E230067180E /* .gitignore */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		03162C9217682E230067180E /* license.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = license.md; sourceTree = "<group>"; };
-		03162C9317682E230067180E /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
-		03162C9517682E230067180E /* MSAPingPong.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAPingPong.h; sourceTree = "<group>"; };
-		03162C9B17682ECC0067180E /* MSATimer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSATimer.h; sourceTree = "<group>"; };
 		03162C9C1768447F0067180E /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = System/Library/Frameworks/OpenCL.framework; sourceTree = SDKROOT; };
 		03222C141723333E00E00BF1 /* .gitignore */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		03222C181723333E00E00BF1 /* Calibration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Calibration.h; sourceTree = "<group>"; };
@@ -348,73 +323,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		03162C5617682E060067180E /* ofxMSAOpenCL */ = {
-			isa = PBXGroup;
-			children = (
-				03162C7217682E060067180E /* src */,
-			);
-			name = ofxMSAOpenCL;
-			path = ../../../addons/ofxMSAOpenCL;
-			sourceTree = "<group>";
-		};
-		03162C7217682E060067180E /* src */ = {
-			isa = PBXGroup;
-			children = (
-				03162C7317682E060067180E /* MSAOpenCL.cpp */,
-				03162C7417682E060067180E /* MSAOpenCL.h */,
-				03162C7517682E060067180E /* MSAOpenCLBuffer.cpp */,
-				03162C7617682E060067180E /* MSAOpenCLBuffer.h */,
-				03162C7717682E060067180E /* MSAOpenCLImage.cpp */,
-				03162C7817682E060067180E /* MSAOpenCLImage.h */,
-				03162C7917682E060067180E /* MSAOpenCLImagePingPong.h */,
-				03162C7A17682E060067180E /* MSAOpenCLKernel.cpp */,
-				03162C7B17682E060067180E /* MSAOpenCLKernel.h */,
-				03162C7C17682E060067180E /* MSAOpenCLMemoryObject.cpp */,
-				03162C7D17682E060067180E /* MSAOpenCLMemoryObject.h */,
-				03162C7E17682E060067180E /* MSAOpenCLProgram.cpp */,
-				03162C7F17682E060067180E /* MSAOpenCLProgram.h */,
-				03162C8017682E060067180E /* MSAOpenCLTypes.h */,
-			);
-			path = src;
-			sourceTree = "<group>";
-		};
-		03162C9017682E230067180E /* ofxMSAPingPong */ = {
-			isa = PBXGroup;
-			children = (
-				03162C9117682E230067180E /* .gitignore */,
-				03162C9217682E230067180E /* license.md */,
-				03162C9317682E230067180E /* README.md */,
-				03162C9417682E230067180E /* src */,
-			);
-			name = ofxMSAPingPong;
-			path = ../../../addons/ofxMSAPingPong;
-			sourceTree = "<group>";
-		};
-		03162C9417682E230067180E /* src */ = {
-			isa = PBXGroup;
-			children = (
-				03162C9517682E230067180E /* MSAPingPong.h */,
-			);
-			path = src;
-			sourceTree = "<group>";
-		};
-		03162C9617682ECC0067180E /* ofxMSATimer */ = {
-			isa = PBXGroup;
-			children = (
-				03162C9A17682ECC0067180E /* src */,
-			);
-			name = ofxMSATimer;
-			path = ../../../addons/ofxMSATimer;
-			sourceTree = "<group>";
-		};
-		03162C9A17682ECC0067180E /* src */ = {
-			isa = PBXGroup;
-			children = (
-				03162C9B17682ECC0067180E /* MSATimer.h */,
-			);
-			path = src;
-			sourceTree = "<group>";
-		};
 		03222A031723333800E00BF1 /* ofxCv */ = {
 			isa = PBXGroup;
 			children = (
@@ -1091,9 +999,6 @@
 		BB4B014C10F69532006C3DED /* addons */ = {
 			isa = PBXGroup;
 			children = (
-				03162C9617682ECC0067180E /* ofxMSATimer */,
-				03162C5617682E060067180E /* ofxMSAOpenCL */,
-				03162C9017682E230067180E /* ofxMSAPingPong */,
 				03F0902B173B1341008E0CA1 /* ofxThread */,
 				03222A031723333800E00BF1 /* ofxCv */,
 				03222CCA1723334D00E00BF1 /* ofxOpenCv */,
@@ -1291,12 +1196,6 @@
 				03222D4C1723334E00E00BF1 /* ofxCvImage.cpp in Sources */,
 				03222D4D1723334E00E00BF1 /* ofxCvShortImage.cpp in Sources */,
 				03F0903A173B1341008E0CA1 /* ofxThread.cpp in Sources */,
-				03162C8A17682E060067180E /* MSAOpenCL.cpp in Sources */,
-				03162C8B17682E060067180E /* MSAOpenCLBuffer.cpp in Sources */,
-				03162C8C17682E060067180E /* MSAOpenCLImage.cpp in Sources */,
-				03162C8D17682E060067180E /* MSAOpenCLKernel.cpp in Sources */,
-				03162C8E17682E060067180E /* MSAOpenCLMemoryObject.cpp in Sources */,
-				03162C8F17682E060067180E /* MSAOpenCLProgram.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1400,9 +1299,6 @@
 					../../../addons/ofxCv/libs/ofxCv/include,
 					../../../addons/ofxOpenCv/libs/opencv/include,
 					../../../addons/ofxThread/src,
-					../../../addons/ofxMSATimer/src,
-					../../../addons/ofxMSAPingPong/src,
-					../../../addons/ofxMSAOpenCL/src,
 				);
 				INFOPLIST_FILE = "openFrameworks-Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";
@@ -1509,9 +1405,6 @@
 					../../../addons/ofxCv/libs/ofxCv/include,
 					../../../addons/ofxOpenCv/libs/opencv/include,
 					../../../addons/ofxThread/src,
-					../../../addons/ofxMSATimer/src,
-					../../../addons/ofxMSAPingPong/src,
-					../../../addons/ofxMSAOpenCL/src,
 				);
 				INFOPLIST_FILE = "openFrameworks-Info.plist";
 				INSTALL_PATH = "$(HOME)/Applications";

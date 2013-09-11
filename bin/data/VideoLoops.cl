@@ -21,9 +21,11 @@ __kernel void updateMask(read_only image2d_t depthmap,
 	write_imagef(nextMask, coords, d);
 }
 
-__kernel void temporalVideoMask0(read_only image3d_t input,
+__kernel void temporalVideoMask(global read_only unsigned char* input,
 								read_only image2d_t mask,
 								write_only image2d_t masked,
+								int layer,
+								int frameCount,
 								float frameOffset) {
 	int2 coords2d = (int2)(get_global_id(0), get_global_id(1));
 	float4 m = read_imagef(mask, sampler, coords2d);
@@ -31,77 +33,17 @@ __kernel void temporalVideoMask0(read_only image3d_t input,
 	frameOffset += m.w;
 	if (frameOffset > 1) frameOffset -= 1;
 	
-	if (frameOffset < 0.25) {
-		frameOffset /= 0.25;
-		
-		int4 coords3d = (int4)(get_global_id(0), get_global_id(1), frameOffset * get_image_depth(input), 0);
-		float4 d = read_imagef(input, sampler, coords3d);
-		
-		write_imagef(masked, coords2d, d);
-	}
-}
-
-__kernel void temporalVideoMask1(read_only image3d_t input,
-								 read_only image2d_t mask,
-								 write_only image2d_t masked,
-								 float frameOffset) {
-	int2 coords2d = (int2)(get_global_id(0), get_global_id(1));
-	float4 m = read_imagef(mask, sampler, coords2d);
+	int frameIndex = frameCount * frameOffset * get_image_width(mask) * get_image_height(mask);
+	int pixelIndex = coords2d.y * get_image_width(mask) + coords2d.x;
 	
-	frameOffset += m.w;
-	if (frameOffset > 1) frameOffset -= 1;
+	int4 coords3d = (int4)(get_global_id(0), get_global_id(1), frameOffset * frameCount, 0);
+	float4 d = (float4)(
+						input[frameIndex * 4 + pixelIndex * 4 + 0],
+						input[frameIndex * 4 + pixelIndex * 4 + 1],
+						input[frameIndex * 4 + pixelIndex * 4 + 2],
+						input[frameIndex * 4 + pixelIndex * 4 + 3]);
 	
-	if (frameOffset >= 0.25 && frameOffset < 0.5) {
-		frameOffset -= 0.25;
-		frameOffset /= 0.25;
-		
-		int4 coords3d = (int4)(get_global_id(0), get_global_id(1), frameOffset * get_image_depth(input), 0);
-		float4 d = read_imagef(input, sampler, coords3d);
-		
-		write_imagef(masked, coords2d, d);
-	}
-}
-
-__kernel void temporalVideoMask2(read_only image3d_t input,
-								 read_only image2d_t mask,
-								 write_only image2d_t masked,
-								 float frameOffset) {
-	int2 coords2d = (int2)(get_global_id(0), get_global_id(1));
-	float4 m = read_imagef(mask, sampler, coords2d);
-	
-	frameOffset += m.w;
-	if (frameOffset > 1) frameOffset -= 1;
-	
-	if (frameOffset >= 0.5 && frameOffset < 0.75) {
-		frameOffset -= 0.5;
-		frameOffset /= 0.25;
-		
-		int4 coords3d = (int4)(get_global_id(0), get_global_id(1), frameOffset * get_image_depth(input), 0);
-		float4 d = read_imagef(input, sampler, coords3d);
-		
-		write_imagef(masked, coords2d, d);
-	}
-}
-
-__kernel void temporalVideoMask3(read_only image3d_t input,
-								 read_only image2d_t mask,
-								 write_only image2d_t masked,
-								 float frameOffset) {
-	int2 coords2d = (int2)(get_global_id(0), get_global_id(1));
-	float4 m = read_imagef(mask, sampler, coords2d);
-	
-	frameOffset += m.w;
-	if (frameOffset > 1) frameOffset -= 1;
-	
-	if (frameOffset >= 0.75) {
-		frameOffset -= 0.75;
-		frameOffset /= 0.25;
-		
-		int4 coords3d = (int4)(get_global_id(0), get_global_id(1), frameOffset * get_image_depth(input), 0);
-		float4 d = read_imagef(input, sampler, coords3d);
-		
-		write_imagef(masked, coords2d, d);
-	}
+	write_imagef(masked, coords2d, d);
 }
 
 

@@ -6,10 +6,6 @@
 #include "ofxKinect.h"
 #include "time.h"
 #include "vector.h"
-#include "MSATimer.h"
-#include "MSAOpenCL.h"
-
-#define NUM_LAYERS 4
 
 class testApp : public ofBaseApp {
 public:
@@ -18,8 +14,12 @@ public:
 	void draw();
 	void exit();
 	
+	void countFrames(string path);
+	void loadFrames(string path, unsigned char* pixels);
 	void writeDistorted();
-	void calculateDrawSize();
+	void calculateDrawSize(string path);
+	
+	void fastBlur(unsigned char* pixels, int w, int h, int r);
 	
 	void keyPressed(int key);
 	void keyReleased(int key);
@@ -31,24 +31,25 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 	
-	msa::OpenCL openCL;
 	ofxKinect kinect;
 	
-	msa::OpenCLImage kinectDepthBuffer;
-	msa::OpenCLImage maskBuffer[2];
-	int activeMaskBuffer;
-	msa::OpenCLImage blurredBuffer;
-	msa::OpenCLImage inputBuffer[NUM_LAYERS];
-	msa::OpenCLImage distortedBuffer;
-	
-	float nearThreshold;
-	float farThreshold;
-	float fadeRate;
+	int nearThreshold;
+	int farThreshold;
+	int fadeRate;
 	
 	float kinectAngle;
 	
-	unsigned char* distortedPixels;
+	/** Write kinect output to fading mask. kinect.width x kinect.height x 1 **/
+	unsigned char* maskPixels;
+	
+	/** Write kinect to this resized image and blur. frameWidth x frameHeight x 1 */
 	unsigned char* blurredPixels;
+	
+	/** Input frames. frameCount x frameWidth x frameHeight x 4 */
+	unsigned char* inputPixels;
+	
+	/** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
+	unsigned char* outputPixels;
 	
 	int frameCount;
 	int frameWidth;
