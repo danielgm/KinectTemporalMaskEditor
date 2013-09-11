@@ -35,6 +35,7 @@ public:
 	
 	int nearThreshold;
 	int farThreshold;
+	int ghostThreshold;
 	int fadeRate;
 	
 	float kinectAngle;
@@ -61,8 +62,6 @@ public:
 	ofImage drawImage;
 	int drawWidth;
 	int drawHeight;
-	
-	bool movieFramesAllocated;
 	
 	bool showHud;
 	bool showMask;

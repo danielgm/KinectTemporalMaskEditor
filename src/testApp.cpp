@@ -5,15 +5,6 @@ using namespace cv;
 
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
-    
-	kinect.init(false, false);
-	kinect.open();
-	
-	kinectAngle = 0;
-	ofSetFrameRate(60);
-	kinect.setCameraTiltAngle(kinectAngle);
-	
-	movieFramesAllocated = false;
 	
 	showHud = true;
 	showMask = false;
@@ -27,6 +18,7 @@ void testApp::setup() {
 	
 	nearThreshold = 204;
 	farThreshold = 153;
+	ghostThreshold = 196;
 	fadeRate = 1;
 	
 	screenWidth = ofGetWindowWidth();
@@ -40,6 +32,19 @@ void testApp::setup() {
 	countFrames(path);
 	calculateDrawSize(path);
 	
+	cout << "---" << endl
+		<< "Frames:\t" << frameCount << endl
+		<< "Size:\t" << frameWidth << 'x' << frameHeight << endl
+		<< "Memory: " << floor(frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
+		<< "---" << endl;
+    
+	kinect.init(false, false);
+	kinect.open();
+	
+	kinectAngle = 0;
+	ofSetFrameRate(60);
+	kinect.setCameraTiltAngle(kinectAngle);
+	
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
 	inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 4];
@@ -52,7 +57,6 @@ void testApp::setup() {
 	
 	loadFrames(path, inputPixels);
 	
-	movieFramesAllocated = true;
 	previousTime = ofGetSystemTime();
 }
 
@@ -68,7 +72,7 @@ void testApp::update() {
 	}
 	
 	kinect.update();
-	if (kinect.isFrameNew() && movieFramesAllocated) {
+	if (kinect.isFrameNew()) {
 		// Write Kinect depth map pixels to the mask and fade.
 		unsigned char* kinectPixels = kinect.getDepthPixels();
 		for (int i = 0; i < kinect.width * kinect.height; i++) {
@@ -87,7 +91,16 @@ void testApp::update() {
 			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1) + frameOffset;
 			if (frameIndex >= frameCount) frameIndex -= frameCount;
 			for (int c = 0; c < 4; c++) {
-				outputPixels[i * 4 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
+				outputPixels[i * 4 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c] + kinectPixels[i] / 52;
+				
+				// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
+				// as the frame. This will cause problems if their sizes are different. Asserts commented
+				// out for performance.
+				//assert(kinect.width == frameWidth);
+				//assert(kinect.height == frameHeight);
+				if (showGhost && kinectPixels[i] > ghostThreshold) {
+					outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
+				}
 			}
 		}
 	}
@@ -101,25 +114,24 @@ void testApp::draw() {
 		drawImage.setFromPixels(blurredPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
 		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 	}
-	if (movieFramesAllocated) {
-		if (!showMask) {
-			drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
-			drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
-		}
-		
-		if (recording) {
-			string filenameIndexStr = ofToString(recordingImageIndex++);
-			while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
-			drawImage.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
-		}
+	else {
+		drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
+		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 	}
-	
+		
+	if (recording) {
+		string filenameIndexStr = ofToString(recordingImageIndex++);
+		while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
+		drawImage.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
+	}
+
 	if (showHud) {
 		stringstream str;
 		
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 		<< "Frame count: " << frameCount << endl
+		<< "Memory: " << floor(frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
 		<< "(R) Time direction: " << (reverseTime ? "reverse" : "forward") << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
@@ -152,8 +164,6 @@ void testApp::countFrames(string path) {
 }
 
 void testApp::loadFrames(string path, unsigned char* pixels) {
-	cout << "Loading " << frameCount << " frames at " << frameWidth << "x" << frameHeight << "... ";
-	
 	ofImage image;
 	for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 		image.loadImage(path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
