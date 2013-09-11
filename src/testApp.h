@@ -7,6 +7,8 @@
 #include "time.h"
 #include "vector.h"
 
+#define NUM_LAYERS 4
+
 class testApp : public ofBaseApp {
 public:
 	void setup();
@@ -15,9 +17,9 @@ public:
 	void exit();
 	
 	void countFrames(string path);
-	void loadFrames(string path, unsigned char* pixels);
-	void writeDistorted();
 	void calculateDrawSize(string path);
+	void loadFrames(unsigned char** pixels);
+	void writeDistorted();
 	
 	void fastBlur(unsigned char* pixels, int w, int h, int r);
 	
@@ -46,8 +48,8 @@ public:
 	/** Write kinect to this resized image and blur. frameWidth x frameHeight x 1 */
 	unsigned char* blurredPixels;
 	
-	/** Input frames. frameCount x frameWidth x frameHeight x 4 */
-	unsigned char* inputPixels;
+	/** Input frames. NUM_LAYERS x frameCount x frameWidth x frameHeight x 4 */
+	unsigned char** inputPixels;
 	
 	/** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
 	unsigned char* outputPixels;

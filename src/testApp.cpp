@@ -16,7 +16,7 @@ void testApp::setup() {
 	nearThreshold = 204;
 	farThreshold = 153;
 	ghostThreshold = 196;
-	fadeRate = 1;
+	fadeRate = 3;
 	
 	screenWidth = ofGetWindowWidth();
 	screenHeight = ofGetWindowHeight();
@@ -32,7 +32,7 @@ void testApp::setup() {
 	cout << "---" << endl
 		<< "Frames:\t" << frameCount << endl
 		<< "Size:\t" << frameWidth << 'x' << frameHeight << endl
-		<< "Memory: " << floor(frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
+		<< "Memory: " << floor(NUM_LAYERS * frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
 		<< "---" << endl;
     
 	kinect.init(false, false);
@@ -44,15 +44,19 @@ void testApp::setup() {
 	
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
-	inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 4];
 	outputPixels = new unsigned char[frameWidth * frameHeight * 4];
+	
+	inputPixels = new unsigned char*[NUM_LAYERS];
+	for (int layer = 0; layer < NUM_LAYERS; layer++) {
+		inputPixels[layer] = new unsigned char[frameCount * frameWidth * frameHeight * 4];
+	}
 	
 	// Start the mask off black.
 	for (int i = 0; i < kinect.width * kinect.height; i++) {
 		maskPixels[i] = 0;
 	}
 	
-	loadFrames(path, inputPixels);
+	loadFrames(inputPixels);
 	
 	previousTime = ofGetSystemTime();
 }
@@ -85,13 +89,14 @@ void testApp::update() {
 		fastBlur(blurredPixels, frameWidth, frameHeight, 5);
 		
 		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+			int layer = blurredPixels[i] * NUM_LAYERS / 256;
+			int frameIndex = ofMap(blurredPixels[i] - 256 * layer / NUM_LAYERS, 0, 255 / NUM_LAYERS, 0, frameCount - 1);
 			
 			frameIndex += frameOffset;
 			while (frameIndex >= frameCount) frameIndex -= frameCount;
 			
 			for (int c = 0; c < 4; c++) {
-				outputPixels[i * 4 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c] + kinectPixels[i] / 52;
+				outputPixels[i * 4 + c] = inputPixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + c] + kinectPixels[i] / 52;
 				
 				// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
 				// as the frame. This will cause problems if their sizes are different. Asserts commented
@@ -146,8 +151,12 @@ void testApp::draw() {
 void testApp::exit() {
 	delete[] maskPixels;
 	delete[] blurredPixels;
-	delete[] inputPixels;
 	delete[] outputPixels;
+	
+	for (int layer = 0; layer < NUM_LAYERS; layer++) {
+		delete[] inputPixels[layer];
+	}
+	delete[] inputPixels;
 }
 
 void testApp::countFrames(string path) {
@@ -156,26 +165,6 @@ void testApp::countFrames(string path) {
 	while (file.doesFileExist(path + "/frame" + ofToString(frameCount + 1, 0, 4, '0') + ".png")) {
 		frameCount++;
 	}
-}
-
-void testApp::loadFrames(string path, unsigned char* pixels) {
-	ofImage image;
-	for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-		image.loadImage(path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
-		
-		unsigned char* copyPixels = image.getPixels();
-		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
-			pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
-			pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
-			pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
-		}
-	}
-}
-
-void testApp::writeDistorted() {
-	drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-	drawImage.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
 }
 
 void testApp::calculateDrawSize(string path) {
@@ -195,6 +184,28 @@ void testApp::calculateDrawSize(string path) {
 		drawWidth = screenWidth;
 		drawHeight = screenWidth / frameAspect;
 	}
+}
+
+void testApp::loadFrames(unsigned char** pixels) {
+	ofImage image;
+	for (int layer = 0; layer < NUM_LAYERS; layer++) {
+		for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+			image.loadImage("layer" + ofToString(layer) + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
+			
+			unsigned char* copyPixels = image.getPixels();
+			for (int i = 0; i < frameWidth * frameHeight; i++) {
+				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
+				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
+				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
+				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
+			}
+		}
+	}
+}
+
+void testApp::writeDistorted() {
+	drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
+	drawImage.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
 }
 
 /**
