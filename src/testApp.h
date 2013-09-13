@@ -7,8 +7,6 @@
 #include "time.h"
 #include "vector.h"
 
-#define NUM_LAYERS 4
-
 class testApp : public ofBaseApp {
 public:
 	void setup();
@@ -16,9 +14,9 @@ public:
 	void draw();
 	void exit();
 	
-	void countFrames(string path);
+	void countLayers(string path);
 	void calculateDrawSize(string path);
-	void loadFrames(unsigned char** pixels);
+	void loadFrames(string path, unsigned char** pixels);
 	void writeDistorted();
 	
 	void fastBlur(unsigned char* pixels, int w, int h, int r);
@@ -54,7 +52,8 @@ public:
 	/** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
 	unsigned char* outputPixels;
 	
-	int frameCount;
+	int layerCount;
+	int* frameCount;
 	int frameWidth;
 	int frameHeight;
 	
@@ -75,9 +74,9 @@ public:
 	string recordingPath;
 	int recordingImageIndex;
 	
-	int frameOffset;
+	int* frameOffset;
 	float frameOffsetFps = 30;
-	long previousTime;
+	long* previousTime;
 	
 	int blurAmount;
 };

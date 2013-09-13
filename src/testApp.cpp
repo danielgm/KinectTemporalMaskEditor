@@ -21,19 +21,18 @@ void testApp::setup() {
 	screenWidth = ofGetWindowWidth();
 	screenHeight = ofGetWindowHeight();
 	
-	frameOffset = 0;
-	
 	blurAmount = 3;
 	
-	string path = "layer0";
-	countFrames(path);
+	string path = "input";
+	countLayers(path);
 	calculateDrawSize(path);
 	
-	cout << "---" << endl
-		<< "Frames:\t" << frameCount << endl
-		<< "Size:\t" << frameWidth << 'x' << frameHeight << endl
-		<< "Memory: " << floor(NUM_LAYERS * frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
-		<< "---" << endl;
+	frameCount = new int[layerCount];
+	
+	frameOffset = new int[layerCount];
+	for (int layer = 0; layer < layerCount; layer++) {
+		frameOffset[layer] = 0;
+	}
     
 	kinect.init(false, false);
 	kinect.open();
@@ -44,68 +43,99 @@ void testApp::setup() {
 	
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
+	inputPixels = new unsigned char*[layerCount];
 	outputPixels = new unsigned char[frameWidth * frameHeight * 4];
-	
-	inputPixels = new unsigned char*[NUM_LAYERS];
-	for (int layer = 0; layer < NUM_LAYERS; layer++) {
-		inputPixels[layer] = new unsigned char[frameCount * frameWidth * frameHeight * 4];
-	}
 	
 	// Start the mask off black.
 	for (int i = 0; i < kinect.width * kinect.height; i++) {
 		maskPixels[i] = 0;
 	}
 	
-	loadFrames(inputPixels);
+	loadFrames(path, inputPixels);
 	
-	previousTime = ofGetSystemTime();
+	long bytes = 0;
+	for (int layer = 0; layer < layerCount; layer++) {
+		bytes += frameCount[layer] * frameWidth * frameHeight * 4;
+	}
+	
+	cout << "---" << endl
+	<< "Size:\t" << frameWidth << 'x' << frameHeight << endl
+	<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
+	<< "---" << endl;
+	
+	previousTime = new long[layerCount];
+	for (int layer = 0; layer < layerCount; layer++) {
+		previousTime[layer] = ofGetSystemTime();
+	}
 }
 
 void testApp::update() {
-	if (frameCount > 0) {
-		// Increment the frame offset at the given FPS.
-		long now = ofGetSystemTime();
-		int t = now - previousTime;
-		int d = floor(t / 1000.0 * frameOffsetFps);
-		frameOffset += d;
-		while (frameOffset > frameCount) frameOffset -= frameCount;
-		previousTime = now + floor(d * 1000.0 / frameOffsetFps) - t;
+	long now = ofGetSystemTime();
+	for (int layer = 0; layer < layerCount; layer++) {
+		if (frameCount[layer] > 0) {
+			// Increment the frame offset at the given FPS.
+			int t = now - previousTime[layer];
+			int d = floor(t / 1000.0 * frameOffsetFps);
+			frameOffset[layer] += d;
+			while (frameOffset[layer] > frameCount[layer]) frameOffset[layer] -= frameCount[layer];
+			previousTime[layer] = now + floor(d * 1000.0 / frameOffsetFps) - t;
+		}
 	}
 	
-	kinect.update();
-	if (kinect.isFrameNew()) {
-		// Write Kinect depth map pixels to the mask and fade.
-		unsigned char* kinectPixels = kinect.getDepthPixels();
-		for (int i = 0; i < kinect.width * kinect.height; i++) {
-			unsigned char k = kinectPixels[i];
-			unsigned char m = MAX(0, maskPixels[i] - fadeRate);
-			k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
-			blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+	if (kinect.isConnected()) {
+		kinect.update();
+		if (kinect.isFrameNew()) {
+			// Write Kinect depth map pixels to the mask and fade.
+			for (int i = 0; i < kinect.width * kinect.height; i++) {
+				unsigned char k = kinect.getDepthPixels()[i];
+				unsigned char m = MAX(0, maskPixels[i] - fadeRate);
+				k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
+				blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+			}
+			
+			// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
+			assert(kinect.width == frameWidth);
+			assert(kinect.height == frameHeight);
+			fastBlur(blurredPixels, frameWidth, frameHeight, 5);
+		}
+	}
+	else {
+		int radius = 60;
+		for (int offsetX = -radius; offsetX < radius; offsetX++) {
+			for (int offsetY = -radius; offsetY < radius; offsetY++) {
+				if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
+					int x = mouseX + offsetX;
+					int y = mouseY + offsetY;
+					if (x >= 0 && x < frameWidth && y >= 0 && y < frameHeight) {
+						blurredPixels[y * frameWidth + x] = min(255, blurredPixels[y * frameWidth + x] + 16);
+					}
+				}
+			}
 		}
 		
 		// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
 		assert(kinect.width == frameWidth);
 		assert(kinect.height == frameHeight);
-		fastBlur(blurredPixels, frameWidth, frameHeight, 5);
+		fastBlur(blurredPixels, frameWidth, frameHeight, 3);
+	}
+	
+	for (int i = 0; i < frameWidth * frameHeight; i++) {
+		int layer = blurredPixels[i] * layerCount / 256;
+		int frameIndex = ofMap(blurredPixels[i] - 256 * layer / layerCount, 0, 255 / layerCount, 0, frameCount[layer] - 1);
 		
-		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			int layer = blurredPixels[i] * NUM_LAYERS / 256;
-			int frameIndex = ofMap(blurredPixels[i] - 256 * layer / NUM_LAYERS, 0, 255 / NUM_LAYERS, 0, frameCount - 1);
+		frameIndex += frameOffset[layer];
+		while (frameIndex >= frameCount[layer]) frameIndex -= frameCount[layer];
+		
+		for (int c = 0; c < 4; c++) {
+			outputPixels[i * 4 + c] = inputPixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
 			
-			frameIndex += frameOffset;
-			while (frameIndex >= frameCount) frameIndex -= frameCount;
-			
-			for (int c = 0; c < 4; c++) {
-				outputPixels[i * 4 + c] = inputPixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + c] + kinectPixels[i] / 52;
-				
-				// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
-				// as the frame. This will cause problems if their sizes are different. Asserts commented
-				// out for performance.
-				//assert(kinect.width == frameWidth);
-				//assert(kinect.height == frameHeight);
-				if (showGhost && kinectPixels[i] > ghostThreshold) {
-					outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
-				}
+			// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
+			// as the frame. This will cause problems if their sizes are different. Asserts commented
+			// out for performance.
+			//assert(kinect.width == frameWidth);
+			//assert(kinect.height == frameHeight);
+			if (showGhost && kinect.isConnected() && kinect.getDepthPixels()[i] > ghostThreshold) {
+				outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
 			}
 		}
 	}
@@ -125,18 +155,19 @@ void testApp::draw() {
 	}
 		
 	if (recording) {
-		string filenameIndexStr = ofToString(recordingImageIndex++);
-		while (filenameIndexStr.size() < 4) filenameIndexStr = "0" + filenameIndexStr;
-		drawImage.saveImage(recordingPath + "/frame" + filenameIndexStr + ".jpg");
+		drawImage.saveImage(recordingPath + "/frame" + ofToString(recordingImageIndex++, 0, 4, '0') + ".png");
 	}
 
 	if (showHud) {
-		stringstream str;
+		long bytes = 0;
+		for (int layer = 0; layer < layerCount; layer++) {
+			bytes += frameCount[layer] * frameWidth * frameHeight * 4;
+		}
 		
+		stringstream str;
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
-		<< "Frame count: " << frameCount << endl
-		<< "Memory: " << floor(frameCount * frameWidth * frameHeight * 4 / 1024 / 1024) << " MB" << endl
+		<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
 		<< "(J/K) Fade rate: " << fadeRate << endl
@@ -153,24 +184,24 @@ void testApp::exit() {
 	delete[] blurredPixels;
 	delete[] outputPixels;
 	
-	for (int layer = 0; layer < NUM_LAYERS; layer++) {
+	for (int layer = 0; layer < layerCount; layer++) {
 		delete[] inputPixels[layer];
 	}
 	delete[] inputPixels;
 }
 
-void testApp::countFrames(string path) {
-	frameCount = 0;
+void testApp::countLayers(string path) {
+	layerCount = 0;
 	ofFile file;
-	while (file.doesFileExist(path + "/frame" + ofToString(frameCount + 1, 0, 4, '0') + ".png")) {
-		frameCount++;
+	while (file.doesFileExist(path + "/layer" + ofToString(layerCount + 1, 0, 2, '0'))) {
+		layerCount++;
 	}
 }
 
 void testApp::calculateDrawSize(string path) {
 	// Determine image size from the first frame.
 	ofImage image;
-	image.loadImage(path + "/frame0001.png");
+	image.loadImage(path + "/layer01/frame0001.png");
 	frameWidth = image.width;
 	frameHeight = image.height;
 	
@@ -186,11 +217,20 @@ void testApp::calculateDrawSize(string path) {
 	}
 }
 
-void testApp::loadFrames(unsigned char** pixels) {
+void testApp::loadFrames(string path, unsigned char** pixels) {
+	ofFile file;
 	ofImage image;
-	for (int layer = 0; layer < NUM_LAYERS; layer++) {
-		for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-			image.loadImage("layer" + ofToString(layer) + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
+	for (int layer = 0; layer < layerCount; layer++) {
+		
+		// Count the number of frames.
+		frameCount[layer] = 0;
+		while (file.doesFileExist(path + "/layer" + ofToString(layer + 1, 0, 2, '0') + "/frame" + ofToString(frameCount[layer] + 1, 0, 4, '0') + ".png")) {
+			frameCount[layer]++;
+		}
+		
+		inputPixels[layer] = new unsigned char[frameCount[layer] * frameWidth * frameHeight * 4];
+		for (int frameIndex = 0; frameIndex < frameCount[layer]; frameIndex++) {
+			image.loadImage(path + "/layer" + ofToString(layer + 1, 0, 2, '0') + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
 			
 			unsigned char* copyPixels = image.getPixels();
 			for (int i = 0; i < frameWidth * frameHeight; i++) {
@@ -204,8 +244,7 @@ void testApp::loadFrames(unsigned char** pixels) {
 }
 
 void testApp::writeDistorted() {
-	drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
-	drawImage.saveImage("distorted.tga", OF_IMAGE_QUALITY_BEST);
+	drawImage.saveImage("distorted.png");
 }
 
 /**
