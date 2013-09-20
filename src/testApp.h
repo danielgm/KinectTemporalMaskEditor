@@ -7,6 +7,42 @@
 #include "time.h"
 #include "vector.h"
 
+/** A layer of frames. */
+struct Layer {
+	int index;
+	string path;
+	int frameCount;
+
+	/** For animation. */
+	int frameOffset;
+	long previousTime;
+
+	unsigned char* pixels;
+
+	Layer() : pixels(0) {
+	}
+
+	~Layer() {
+		if (pixels) delete[] pixels;
+	}
+};
+
+/** A set of layers. */
+struct Set {
+	int index;
+	string path;
+	int layerCount;
+
+	Layer* layers;
+
+	Set() : layers(0) {
+	}
+
+	~Set() {
+		if (layers) delete[] layers;
+	}
+};
+
 class testApp : public ofBaseApp {
 public:
 	void setup();
@@ -14,9 +50,12 @@ public:
 	void draw();
 	void exit();
 	
-	void countLayers(string path);
-	void calculateDrawSize(string path);
-	void loadFrames(string path, unsigned char** pixels);
+	int countSets();
+	int countLayers(Set* set);
+	int countFrames(Layer* layer);
+	void calculateDrawSize();
+	void loadFrames(Layer* layer);
+	void updateFrameOffsets(Set* set, long now);
 	void writeDistorted();
 	
 	void fastBlur(unsigned char* pixels, int w, int h, int r);
@@ -46,14 +85,14 @@ public:
 	/** Write kinect to this resized image and blur. frameWidth x frameHeight x 1 */
 	unsigned char* blurredPixels;
 	
-	/** Input frames. NUM_LAYERS x frameCount x frameWidth x frameHeight x 4 */
-	unsigned char** inputPixels;
-	
 	/** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
 	unsigned char* outputPixels;
 	
-	int layerCount;
-	int* frameCount;
+	int setCount;
+	int prevSetIndex;
+	int currSetIndex;
+	Set* sets;
+
 	int frameWidth;
 	int frameHeight;
 	
@@ -74,9 +113,7 @@ public:
 	string recordingPath;
 	int recordingImageIndex;
 	
-	int* frameOffset;
 	float frameOffsetFps = 30;
-	long* previousTime;
 	
 	int blurAmount;
 };

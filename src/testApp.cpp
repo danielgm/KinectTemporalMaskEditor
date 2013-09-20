@@ -23,17 +23,6 @@ void testApp::setup() {
 	
 	blurAmount = 3;
 	
-	string path = "input";
-	countLayers(path);
-	calculateDrawSize(path);
-	
-	frameCount = new int[layerCount];
-	
-	frameOffset = new int[layerCount];
-	for (int layer = 0; layer < layerCount; layer++) {
-		frameOffset[layer] = 0;
-	}
-    
 	kinect.init(false, false);
 	kinect.open();
 	
@@ -41,9 +30,44 @@ void testApp::setup() {
 	ofSetFrameRate(60);
 	kinect.setCameraTiltAngle(kinectAngle);
 	
+	calculateDrawSize();
+
+	int bytes = 0;
+	int totalLayers = 0;
+
+	setCount = countSets();
+	sets = new Set[setCount];
+	for (int setIndex = 0; setIndex < setCount; setIndex++) {
+		Set* set = &sets[setIndex];
+		set->index = setIndex;
+		set->path = "set" + ofToString(setIndex + 1, 0, 2, '0');
+		set->layerCount = countLayers(set);
+
+		cout << "Path: " << set->path << endl;
+		cout << "Layer count: " << set->layerCount << endl;
+
+		set->layers = new Layer[set->layerCount];
+		for (int layerIndex = 0; layerIndex < set->layerCount; layerIndex++) {
+			Layer* layer = &set->layers[layerIndex];
+			layer->index = layerIndex;
+			layer->path = set->path + "/layer" + ofToString(layerIndex + 1, 0, 2, '0');
+			layer->frameCount = countFrames(layer);
+			layer->frameOffset = 0;
+
+			cout << "Path: " << layer->path << endl;
+			cout << "Frame count: " << layer->frameCount << endl;
+
+			layer->pixels = new unsigned char[layer->frameCount * frameWidth * frameHeight * 4];
+			loadFrames(layer);
+
+			bytes += layer->frameCount * frameWidth * frameHeight * 4;
+			totalLayers++;
+		}
+	}
+	prevSetIndex = currSetIndex = 0;
+
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
-	inputPixels = new unsigned char*[layerCount];
 	outputPixels = new unsigned char[frameWidth * frameHeight * 4];
 	
 	// Start the mask off black.
@@ -51,36 +75,26 @@ void testApp::setup() {
 		maskPixels[i] = 0;
 	}
 	
-	loadFrames(path, inputPixels);
-	
-	long bytes = 0;
-	for (int layer = 0; layer < layerCount; layer++) {
-		bytes += frameCount[layer] * frameWidth * frameHeight * 4;
-	}
-	
 	cout << "---" << endl
-	<< "Size:\t" << frameWidth << 'x' << frameHeight << endl
-	<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
+	<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
+	<< "Total sets: " << setCount << endl
+	<< "Total layers: " << totalLayers << endl
+	<< "Total memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
 	<< "---" << endl;
-	
-	previousTime = new long[layerCount];
-	for (int layer = 0; layer < layerCount; layer++) {
-		previousTime[layer] = ofGetSystemTime();
+
+	// Set previous time for animation as last step.
+	for (int setIndex = 0; setIndex < setCount; setIndex++) {
+		Set* set = &sets[setIndex];
+		for (int layerIndex = 0; layerIndex < set->layerCount; layerIndex++) {
+			set->layers[layerIndex].previousTime = ofGetSystemTime();
+		}
 	}
 }
 
 void testApp::update() {
 	long now = ofGetSystemTime();
-	for (int layer = 0; layer < layerCount; layer++) {
-		if (frameCount[layer] > 0) {
-			// Increment the frame offset at the given FPS.
-			int t = now - previousTime[layer];
-			int d = floor(t / 1000.0 * frameOffsetFps);
-			frameOffset[layer] += d;
-			while (frameOffset[layer] > frameCount[layer]) frameOffset[layer] -= frameCount[layer];
-			previousTime[layer] = now + floor(d * 1000.0 / frameOffsetFps) - t;
-		}
-	}
+	Set* currSet = &sets[currSetIndex];
+	updateFrameOffsets(currSet, now);
 	
 	if (kinect.isConnected()) {
 		kinect.update();
@@ -100,6 +114,7 @@ void testApp::update() {
 		}
 	}
 	else {
+		// Mouse version if Kinect not present.
 		int radius = 60;
 		for (int offsetX = -radius; offsetX < radius; offsetX++) {
 			for (int offsetY = -radius; offsetY < radius; offsetY++) {
@@ -120,14 +135,15 @@ void testApp::update() {
 	}
 	
 	for (int i = 0; i < frameWidth * frameHeight; i++) {
-		int layer = blurredPixels[i] * layerCount / 256;
-		int frameIndex = ofMap(blurredPixels[i] - 256 * layer / layerCount, 0, 255 / layerCount, 0, frameCount[layer] - 1);
+		int layerIndex = blurredPixels[i] * currSet->layerCount / 256;
+		Layer* layer = &currSet->layers[layerIndex];
+		int frameIndex = ofMap(blurredPixels[i] - 256 * layerIndex / currSet->layerCount, 0, 255 / currSet->layerCount, 0, layer->frameCount - 1);
 		
-		frameIndex += frameOffset[layer];
-		while (frameIndex >= frameCount[layer]) frameIndex -= frameCount[layer];
+		frameIndex += layer->frameOffset;
+		while (frameIndex >= layer->frameCount) frameIndex -= layer->frameCount;
 		
 		for (int c = 0; c < 4; c++) {
-			outputPixels[i * 4 + c] = inputPixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
+			outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
 			
 			// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
 			// as the frame. This will cause problems if their sizes are different. Asserts commented
@@ -159,14 +175,23 @@ void testApp::draw() {
 	}
 
 	if (showHud) {
-		long bytes = 0;
-		for (int layer = 0; layer < layerCount; layer++) {
-			bytes += frameCount[layer] * frameWidth * frameHeight * 4;
+		int bytes = 0;
+		int totalLayers = 0;
+
+		for (int setIndex = 0; setIndex < setCount; setIndex++) {
+			Set* set = &sets[setIndex];
+			for (int layerIndex = 0; layerIndex < set->layerCount; layerIndex++) {
+				Layer* layer = &set->layers[layerIndex];
+				bytes += layer->frameCount * frameWidth * frameHeight * 4;
+				totalLayers++;
+			}
 		}
 		
 		stringstream str;
 		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
+		<< "Sets: " << setCount << endl
+		<< "Layers: " << totalLayers << endl
 		<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
@@ -183,25 +208,34 @@ void testApp::exit() {
 	delete[] maskPixels;
 	delete[] blurredPixels;
 	delete[] outputPixels;
-	
-	for (int layer = 0; layer < layerCount; layer++) {
-		delete[] inputPixels[layer];
-	}
-	delete[] inputPixels;
+	delete[] sets;
 }
 
-void testApp::countLayers(string path) {
-	layerCount = 0;
+int testApp::countSets() {
+	int n = 0;
 	ofFile file;
-	while (file.doesFileExist(path + "/layer" + ofToString(layerCount + 1, 0, 2, '0'))) {
-		layerCount++;
-	}
+	while (file.doesFileExist("set" + ofToString(n + 1, 0, 2, '0'))) n++;
+	return n;
 }
 
-void testApp::calculateDrawSize(string path) {
+int testApp::countLayers(Set* set) {
+	int n = 0;
+	ofFile file;
+	while (file.doesFileExist(set->path + "/layer" + ofToString(n + 1, 0, 2, '0'))) n++;
+	return n;
+}
+
+int testApp::countFrames(Layer* layer) {
+	int n = 0;
+	ofFile file;
+	while (file.doesFileExist(layer->path + "/frame" + ofToString(n + 1, 0, 4, '0') + ".png")) n++;
+	return n;
+}
+
+void testApp::calculateDrawSize() {
 	// Determine image size from the first frame.
 	ofImage image;
-	image.loadImage(path + "/layer01/frame0001.png");
+	image.loadImage("set01/layer01/frame0001.png");
 	frameWidth = image.width;
 	frameHeight = image.height;
 	
@@ -217,29 +251,33 @@ void testApp::calculateDrawSize(string path) {
 	}
 }
 
-void testApp::loadFrames(string path, unsigned char** pixels) {
+void testApp::loadFrames(Layer* layer) {
 	ofFile file;
 	ofImage image;
-	for (int layer = 0; layer < layerCount; layer++) {
+
+	for (int frameIndex = 0; frameIndex < layer->frameCount; frameIndex++) {
+		image.loadImage(layer->path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
 		
-		// Count the number of frames.
-		frameCount[layer] = 0;
-		while (file.doesFileExist(path + "/layer" + ofToString(layer + 1, 0, 2, '0') + "/frame" + ofToString(frameCount[layer] + 1, 0, 4, '0') + ".png")) {
-			frameCount[layer]++;
+		unsigned char* copyPixels = image.getPixels();
+		for (int i = 0; i < frameWidth * frameHeight; i++) {
+			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
+			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
+			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
+			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
 		}
+	}
+}
+
+void testApp::updateFrameOffsets(Set* set, long now) {
+	for (int layerIndex = 0; layerIndex < set->layerCount; layerIndex++) {
+		Layer* layer = &set->layers[layerIndex];
 		
-		inputPixels[layer] = new unsigned char[frameCount[layer] * frameWidth * frameHeight * 4];
-		for (int frameIndex = 0; frameIndex < frameCount[layer]; frameIndex++) {
-			image.loadImage(path + "/layer" + ofToString(layer + 1, 0, 2, '0') + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
-			
-			unsigned char* copyPixels = image.getPixels();
-			for (int i = 0; i < frameWidth * frameHeight; i++) {
-				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
-				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
-				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
-				pixels[layer][frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
-			}
-		}
+		// Increment the frame offset at the given FPS.
+		int t = now - layer->previousTime;
+		int d = floor(t / 1000.0 * frameOffsetFps);
+		layer->frameOffset += d;
+		while (layer->frameOffset > layer->frameCount) layer->frameOffset -= layer->frameCount;
+		layer->previousTime = now + floor(d * 1000.0 / frameOffsetFps) - t;
 	}
 }
 
@@ -343,6 +381,11 @@ void testApp::keyReleased(int key) {
 	switch (key) {
 		case ' ':
 			showHud = !showHud;
+			break;
+
+		case 'n':
+			currSetIndex++;
+			if (currSetIndex >= setCount) currSetIndex = 0;
 			break;
 			
 		case 'w':
