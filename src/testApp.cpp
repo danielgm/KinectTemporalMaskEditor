@@ -228,7 +228,9 @@ void testApp::draw() {
 		<< "(,/.) Duration: " << setDuration << " ms" << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
-		<< "(J/K) Fade rate: " << fadeRate << endl
+		<< "(J/K) Mask fade rate: " << fadeRate << endl
+		<< "(N/B) Near threshold: " << nearThreshold << endl
+		<< "(F/D) Far threshold: " << farThreshold << endl
 		<< "([/]) Tilt angle: " << kinectAngle << endl
 		<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 		<< "(ESC) Quit" << endl;
@@ -485,6 +487,34 @@ void testApp::keyReleased(int key) {
 			fadeRate++;
 			if (fadeRate > 255) fadeRate = 255;
 			cout << "Fade rate: " << fadeRate << endl;
+			writeConfig();
+			break;
+			
+		case 'n':
+			nearThreshold++;
+			if (nearThreshold > 255) nearThreshold = 255;
+			cout << "Near threshold: " << nearThreshold << endl;
+			writeConfig();
+			break;
+			
+		case 'b':
+			nearThreshold--;
+			if (nearThreshold <= farThreshold) nearThreshold = farThreshold + 1;
+			cout << "Near threshold: " << nearThreshold << endl;
+			writeConfig();
+			break;
+			
+		case 'f':
+			farThreshold++;
+			if (farThreshold >= nearThreshold) farThreshold = nearThreshold - 1;
+			cout << "Far threshold: " << farThreshold << endl;
+			writeConfig();
+			break;
+			
+		case 'd':
+			farThreshold--;
+			if (farThreshold < 0) farThreshold = 0;
+			cout << "Far threshold: " << farThreshold << endl;
 			writeConfig();
 			break;
 			
