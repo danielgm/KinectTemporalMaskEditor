@@ -66,9 +66,9 @@ void testApp::setup() {
 	}
 	prevSetIndex = currSetIndex = 0;
 
-	fadeInDuration = 1000;
+	fadeInDuration = 500;
 	setDuration = 5000;
-	fadeOutDuration = 1000;
+	fadeOutDuration = 1500;
 
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
@@ -157,12 +157,15 @@ void testApp::update() {
 			outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
 
 			float d = now - setStartTime;
+			float maskMultiplier = 1;
 			if (d < fadeInDuration) {
-				outputPixels[i * 4 + c] *= d / fadeInDuration;
+				 maskMultiplier = d / fadeInDuration;
 			}
 			else if (d > fadeInDuration + setDuration) {
-				outputPixels[i * 4 + c] *= (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
+				maskMultiplier = (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
 			}
+			outputPixels[i * 4 + c] = outputPixels[i * 4 + c] * maskMultiplier
+				+ maskPixels[i] * (1 - maskMultiplier) * 0.5;
 			
 			// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
 			// as the frame. This will cause problems if their sizes are different. Asserts commented
