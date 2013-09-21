@@ -59,6 +59,9 @@ public:
 	void loadFrames(Layer* layer);
 	void updateFrameOffsets(Set* set, long now);
 	void writeDistorted();
+
+	void readConfig();
+	void writeConfig();
 	
 	void fastBlur(unsigned char* pixels, int w, int h, int r);
 	
@@ -91,9 +94,10 @@ public:
 	unsigned char* outputPixels;
 	
 	int setCount;
-	int prevSetIndex;
 	int currSetIndex;
 	Set* sets;
+	
+	bool autoSetAdvance;
 	
 	// In milliseconds.
 	int fadeInDuration;

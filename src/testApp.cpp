@@ -6,27 +6,34 @@ using namespace cv;
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
 	
+	// Defaults.
+	nearThreshold = 255;
+	farThreshold = 64;
+	ghostThreshold = 196;
+	fadeRate = 3;
+	kinectAngle = 15;
+	autoSetAdvance = true;
+	fadeInDuration = 1000;
+	setDuration = 5000;
+	fadeOutDuration = 1000;
+	showGhost = true;
+	blurAmount = 3;
+	frameOffsetFps = 30;
+
+	readConfig();
+	
 	showHud = true;
 	showMask = false;
-	showGhost = true;
 	recording = false;
 	
 	hudFont.loadFont("verdana.ttf", 12);
 	
-	nearThreshold = 204;
-	farThreshold = 153;
-	ghostThreshold = 196;
-	fadeRate = 3;
+	screenWidth = ofGetScreenWidth();
+	screenHeight = ofGetScreenHeight();
 	
-	screenWidth = ofGetWindowWidth();
-	screenHeight = ofGetWindowHeight();
-	
-	blurAmount = 3;
-	
-	kinect.init(false, false);
+	kinect.init(true, false, false);
 	kinect.open();
 	
-	kinectAngle = 0;
 	ofSetFrameRate(60);
 	kinect.setCameraTiltAngle(kinectAngle);
 	
@@ -64,11 +71,7 @@ void testApp::setup() {
 			totalLayers++;
 		}
 	}
-	prevSetIndex = currSetIndex = 0;
-
-	fadeInDuration = 500;
-	setDuration = 5000;
-	fadeOutDuration = 1500;
+	currSetIndex = 0;
 
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
@@ -98,7 +101,7 @@ void testApp::setup() {
 
 void testApp::update() {
 	long now = ofGetSystemTime();
-	if (now - setStartTime > fadeInDuration + setDuration + fadeOutDuration) {
+	if (autoSetAdvance && now - setStartTime > fadeInDuration + setDuration + fadeOutDuration) {
 		setStartTime = now;
 		currSetIndex++;
 		if (currSetIndex >= setCount) currSetIndex = 0;
@@ -111,11 +114,14 @@ void testApp::update() {
 		kinect.update();
 		if (kinect.isFrameNew()) {
 			// Write Kinect depth map pixels to the mask and fade.
-			for (int i = 0; i < kinect.width * kinect.height; i++) {
-				unsigned char k = kinect.getDepthPixels()[i];
-				unsigned char m = MAX(0, maskPixels[i] - fadeRate);
-				k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
-				blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+			for (int x = 0; x < kinect.width; x++) {
+				for (int y = 0; y < kinect.height; y++) {
+					int i = y * kinect.width + x;
+					unsigned char k = kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1];
+					unsigned char m = MAX(0, maskPixels[i] - fadeRate);
+					k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
+					blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+				}
 			}
 			
 			// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
@@ -145,35 +151,38 @@ void testApp::update() {
 		fastBlur(blurredPixels, frameWidth, frameHeight, 3);
 	}
 	
-	for (int i = 0; i < frameWidth * frameHeight; i++) {
-		int layerIndex = blurredPixels[i] * currSet->layerCount / 256;
-		Layer* layer = &currSet->layers[layerIndex];
-		int frameIndex = ofMap(blurredPixels[i] - 256 * layerIndex / currSet->layerCount, 0, 255 / currSet->layerCount, 0, layer->frameCount - 1);
-		
-		frameIndex += layer->frameOffset;
-		while (frameIndex >= layer->frameCount) frameIndex -= layer->frameCount;
-		
-		for (int c = 0; c < 4; c++) {
-			outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
-
-			float d = now - setStartTime;
-			float maskMultiplier = 1;
-			if (d < fadeInDuration) {
-				 maskMultiplier = d / fadeInDuration;
-			}
-			else if (d > fadeInDuration + setDuration) {
-				maskMultiplier = (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
-			}
-			outputPixels[i * 4 + c] = outputPixels[i * 4 + c] * maskMultiplier
-				+ maskPixels[i] * (1 - maskMultiplier) * 0.5;
+	for (int x = 0; x < kinect.width; x++) {
+		for (int y = 0; y < kinect.height; y++) {
+			int i = y * kinect.width + x;
+			int layerIndex = blurredPixels[i] * currSet->layerCount / 256;
+			Layer* layer = &currSet->layers[layerIndex];
+			int frameIndex = ofMap(blurredPixels[i] - 256 * layerIndex / currSet->layerCount, 0, 255 / currSet->layerCount, 0, layer->frameCount - 1);
 			
-			// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
-			// as the frame. This will cause problems if their sizes are different. Asserts commented
-			// out for performance.
-			//assert(kinect.width == frameWidth);
-			//assert(kinect.height == frameHeight);
-			if (showGhost && kinect.isConnected() && kinect.getDepthPixels()[i] > ghostThreshold) {
-				outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
+			frameIndex += layer->frameOffset;
+			while (frameIndex >= layer->frameCount) frameIndex -= layer->frameCount;
+			
+			for (int c = 0; c < 4; c++) {
+				outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
+				
+				float d = now - setStartTime;
+				float maskMultiplier = 1;
+				if (d < fadeInDuration) {
+					maskMultiplier = d / fadeInDuration;
+				}
+				else if (autoSetAdvance && d > fadeInDuration + setDuration) {
+					maskMultiplier = (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
+				}
+				outputPixels[i * 4 + c] = outputPixels[i * 4 + c] * maskMultiplier
+				+ maskPixels[i] * (1 - maskMultiplier) * 0.5;
+				
+				// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
+				// as the frame. This will cause problems if their sizes are different. Asserts commented
+				// out for performance.
+				//assert(kinect.width == frameWidth);
+				//assert(kinect.height == frameHeight);
+				if (showGhost && kinect.isConnected() && kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1] > ghostThreshold) {
+					outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
+				}
 			}
 		}
 	}
@@ -209,12 +218,13 @@ void testApp::draw() {
 			}
 		}
 		
-		stringstream str;
-		str << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
+		stringstream ss;
+		ss << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
 		<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 		<< "Sets: " << setCount << endl
 		<< "Layers: " << totalLayers << endl
 		<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
+		<< "(A) Auto-advance: " << (autoSetAdvance ? "yes" : "no") << endl
 		<< "(,/.) Duration: " << setDuration << " ms" << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
@@ -222,8 +232,8 @@ void testApp::draw() {
 		<< "([/]) Tilt angle: " << kinectAngle << endl
 		<< "(M) Recording: " << (recording ? "yes" : "no") << endl
 		<< "(ESC) Quit" << endl;
-		hudFont.drawString(str.str(), 32, 32);
-		str.str(std::string());
+		hudFont.drawString(ss.str(), 32, 32);
+		ss.str(std::string());
 	}
 }
 
@@ -306,6 +316,45 @@ void testApp::updateFrameOffsets(Set* set, long now) {
 
 void testApp::writeDistorted() {
 	drawImage.saveImage("distorted.png");
+}
+
+void testApp::readConfig() {
+	ofBuffer b = ofBufferFromFile("config.properties");
+	while (!b.isLastLine()) {
+		string line = b.getNextLine();
+		vector<string> parts = ofSplitString(line, "=");
+		
+		if (parts[0] == "nearThreshold") nearThreshold = ofToInt(parts[1]);
+		if (parts[0] == "farThreshold") farThreshold = ofToInt(parts[1]);
+		if (parts[0] == "ghostThreshold") ghostThreshold = ofToInt(parts[1]);
+		if (parts[0] == "fadeRate") fadeRate = ofToInt(parts[1]);
+		if (parts[0] == "kinectAngle") kinectAngle = ofToInt(parts[1]);
+		if (parts[0] == "autoSetAdvance") autoSetAdvance = ofToInt(parts[1]) > 0;
+		if (parts[0] == "fadeInDuration") fadeInDuration = ofToInt(parts[1]);
+		if (parts[0] == "setDuration") setDuration = ofToInt(parts[1]);
+		if (parts[0] == "fadeOutDuration") fadeOutDuration = ofToInt(parts[1]);
+		if (parts[0] == "showGhost") showGhost = ofToInt(parts[1]) > 0;
+		if (parts[0] == "blurAmount") blurAmount = ofToInt(parts[1]);
+		if (parts[0] == "frameOffsetFps") frameOffsetFps = ofToInt(parts[1]);
+	}
+}
+
+void testApp::writeConfig() {
+	ofFile f;
+	f.open("config.properties", ofFile::WriteOnly, false);
+	f << "nearThreshold=" << nearThreshold << endl;
+	f << "farThreshold=" << farThreshold << endl;
+	f << "ghostThreshold=" << ghostThreshold << endl;
+	f << "fadeRate=" << fadeRate << endl;
+	f << "kinectAngle=" << kinectAngle << endl;
+	f << "autoSetAdvance=" << autoSetAdvance << endl;
+	f << "fadeInDuration=" << fadeInDuration << endl;
+	f << "setDuration=" << 	setDuration << endl;
+	f << "fadeOutDuration=" << 	fadeOutDuration << endl;
+	f << "showGhost=" << 	showGhost << endl;
+	f << "blurAmount=" << 	blurAmount << endl;
+	f << "frameOffsetFps=" << 	frameOffsetFps << endl;
+	f.close();
 }
 
 /**
@@ -406,9 +455,10 @@ void testApp::keyReleased(int key) {
 			showHud = !showHud;
 			break;
 
-		case 'n':
+		case OF_KEY_RETURN:
 			currSetIndex++;
 			if (currSetIndex >= setCount) currSetIndex = 0;
+			setStartTime = ofGetSystemTime();
 			break;
 			
 		case 'w':
@@ -417,6 +467,7 @@ void testApp::keyReleased(int key) {
 			
 		case 'g':
 			showGhost = !showGhost;
+			writeConfig();
 			break;
 			
 		case 't':
@@ -424,15 +475,17 @@ void testApp::keyReleased(int key) {
 			break;
 			
 		case 'j':
-			fadeRate -= 64;
+			fadeRate--;
 			if (fadeRate < 0) fadeRate = 0;
 			cout << "Fade rate: " << fadeRate << endl;
+			writeConfig();
 			break;
 			
 		case 'k':
-			fadeRate += 64;
-			if (fadeRate > 255 * 255) fadeRate = 255 * 255;
+			fadeRate++;
+			if (fadeRate > 255) fadeRate = 255;
 			cout << "Fade rate: " << fadeRate << endl;
+			writeConfig();
 			break;
 			
 		case 'm':
@@ -470,23 +523,34 @@ void testApp::keyReleased(int key) {
 			kinectAngle -= 0.5;
 			kinect.setCameraTiltAngle(kinectAngle);
 			cout << "Tilt angle: " << kinectAngle << endl;
+			writeConfig();
 			break;
 			
 		case ']':
 			kinectAngle += 0.5;
 			kinect.setCameraTiltAngle(kinectAngle);
 			cout << "Tilt angle: " << kinectAngle << endl;
+			writeConfig();
 			break;
 		
 		case ',':
 			setDuration -= 2500;
 			if (setDuration < 2500) setDuration = 2500;
 			cout << "Set duration: " << setDuration << " ms" << endl;
+			writeConfig();
 			break;
 		
 		case '.':
 			setDuration += 2500;
 			cout << "Set duration: " << setDuration << " ms" << endl;
+			writeConfig();
+			break;
+
+		case 'a':
+			autoSetAdvance = !autoSetAdvance;
+			setStartTime = ofGetSystemTime() - fadeInDuration;
+			cout << "Auto advance: " << (autoSetAdvance ? "yes" : "no") << endl;
+			writeConfig();
 			break;
 	}
 }
