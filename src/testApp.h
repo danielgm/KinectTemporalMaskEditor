@@ -15,6 +15,8 @@ struct Layer {
 
 	/** For animation. */
 	int frameOffset;
+
+	// In milliseconds.
 	long previousTime;
 
 	unsigned char* pixels;
@@ -92,6 +94,14 @@ public:
 	int prevSetIndex;
 	int currSetIndex;
 	Set* sets;
+	
+	// In milliseconds.
+	int fadeInDuration;
+	int setDuration;
+	int fadeOutDuration;
+
+	// In milliseconds.
+	long setStartTime;
 
 	int frameWidth;
 	int frameHeight;

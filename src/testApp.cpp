@@ -66,6 +66,10 @@ void testApp::setup() {
 	}
 	prevSetIndex = currSetIndex = 0;
 
+	fadeInDuration = 1000;
+	setDuration = 5000;
+	fadeOutDuration = 1000;
+
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
 	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
 	outputPixels = new unsigned char[frameWidth * frameHeight * 4];
@@ -89,10 +93,17 @@ void testApp::setup() {
 			set->layers[layerIndex].previousTime = ofGetSystemTime();
 		}
 	}
+	setStartTime = ofGetSystemTime();
 }
 
 void testApp::update() {
 	long now = ofGetSystemTime();
+	if (now - setStartTime > fadeInDuration + setDuration + fadeOutDuration) {
+		setStartTime = now;
+		currSetIndex++;
+		if (currSetIndex >= setCount) currSetIndex = 0;
+	}
+
 	Set* currSet = &sets[currSetIndex];
 	updateFrameOffsets(currSet, now);
 	
@@ -144,6 +155,14 @@ void testApp::update() {
 		
 		for (int c = 0; c < 4; c++) {
 			outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
+
+			float d = now - setStartTime;
+			if (d < fadeInDuration) {
+				outputPixels[i * 4 + c] *= d / fadeInDuration;
+			}
+			else if (d > fadeInDuration + setDuration) {
+				outputPixels[i * 4 + c] *= (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
+			}
 			
 			// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
 			// as the frame. This will cause problems if their sizes are different. Asserts commented
@@ -193,6 +212,7 @@ void testApp::draw() {
 		<< "Sets: " << setCount << endl
 		<< "Layers: " << totalLayers << endl
 		<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
+		<< "(,/.) Duration: " << setDuration << " ms" << endl
 		<< "(G) Ghost: " << (showGhost ? "on" : "off") << endl
 		<< "(T) Display: " << (showMask ? "mask" : "output") << endl
 		<< "(J/K) Fade rate: " << fadeRate << endl
@@ -453,6 +473,17 @@ void testApp::keyReleased(int key) {
 			kinectAngle += 0.5;
 			kinect.setCameraTiltAngle(kinectAngle);
 			cout << "Tilt angle: " << kinectAngle << endl;
+			break;
+		
+		case ',':
+			setDuration -= 2500;
+			if (setDuration < 2500) setDuration = 2500;
+			cout << "Set duration: " << setDuration << " ms" << endl;
+			break;
+		
+		case '.':
+			setDuration += 2500;
+			cout << "Set duration: " << setDuration << " ms" << endl;
 			break;
 	}
 }
