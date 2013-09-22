@@ -25,6 +25,7 @@ void testApp::setup() {
 	showHud = true;
 	showMask = false;
 	recording = false;
+	loading = false;
 	
 	hudFont.loadFont("verdana.ttf", 12);
 	
@@ -48,6 +49,7 @@ void testApp::setup() {
 		Set* set = &sets[setIndex];
 		set->index = setIndex;
 		set->path = "set" + ofToString(setIndex + 1, 0, 2, '0');
+		set->loaded = false;
 		set->layerCount = countLayers(set);
 
 		cout << "Path: " << set->path << endl;
@@ -64,24 +66,21 @@ void testApp::setup() {
 			cout << "Path: " << layer->path << endl;
 			cout << "Frame count: " << layer->frameCount << endl;
 
-			layer->pixels = new unsigned char[layer->frameCount * frameWidth * frameHeight * 4];
-			loadFrames(layer);
-
-			bytes += layer->frameCount * frameWidth * frameHeight * 4;
+			bytes += layer->frameCount * frameWidth * frameHeight * 3;
 			totalLayers++;
 		}
 	}
 	currSetIndex = 0;
 
 	maskPixels = new unsigned char[kinect.width * kinect.height * 1];
-	blurredPixels = new unsigned char[frameWidth * frameHeight * 4];
-	outputPixels = new unsigned char[frameWidth * frameHeight * 4];
+	blurredPixels = new unsigned char[frameWidth * frameHeight * 3];
+	outputPixels = new unsigned char[frameWidth * frameHeight * 3];
 	
 	// Start the mask off black.
 	for (int i = 0; i < kinect.width * kinect.height; i++) {
 		maskPixels[i] = 0;
 	}
-	
+
 	cout << "---" << endl
 	<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
 	<< "Total sets: " << setCount << endl
@@ -108,83 +107,89 @@ void testApp::update() {
 	}
 
 	Set* currSet = &sets[currSetIndex];
-	updateFrameOffsets(currSet, now);
-	
-	if (kinect.isConnected()) {
-		kinect.update();
-		if (kinect.isFrameNew()) {
-			// Write Kinect depth map pixels to the mask and fade.
-			for (int x = 0; x < kinect.width; x++) {
-				for (int y = 0; y < kinect.height; y++) {
-					int i = y * kinect.width + x;
-					unsigned char k = kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1];
-					unsigned char m = MAX(0, maskPixels[i] - fadeRate);
-					k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
-					blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+	if (currSet->loaded) {
+		updateFrameOffsets(currSet, now);
+		
+		if (kinect.isConnected()) {
+			kinect.update();
+			if (kinect.isFrameNew()) {
+				// Write Kinect depth map pixels to the mask and fade.
+				for (int x = 0; x < kinect.width; x++) {
+					for (int y = 0; y < kinect.height; y++) {
+						int i = y * kinect.width + x;
+						unsigned char k = kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1];
+						unsigned char m = MAX(0, maskPixels[i] - fadeRate);
+						k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
+						blurredPixels[i] = maskPixels[i] = k > m ? k : m;
+					}
+				}
+				
+				// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
+				assert(kinect.width == frameWidth);
+				assert(kinect.height == frameHeight);
+				fastBlur(blurredPixels, frameWidth, frameHeight, 5);
+			}
+		}
+		else {
+			// Mouse version if Kinect not present.
+			int radius = 60;
+			for (int offsetX = -radius; offsetX < radius; offsetX++) {
+				for (int offsetY = -radius; offsetY < radius; offsetY++) {
+					if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
+						int x = mouseX + offsetX;
+						int y = mouseY + offsetY;
+						if (x >= 0 && x < frameWidth && y >= 0 && y < frameHeight) {
+							blurredPixels[y * frameWidth + x] = min(255, blurredPixels[y * frameWidth + x] + 16);
+						}
+					}
 				}
 			}
 			
 			// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
 			assert(kinect.width == frameWidth);
 			assert(kinect.height == frameHeight);
-			fastBlur(blurredPixels, frameWidth, frameHeight, 5);
+			fastBlur(blurredPixels, frameWidth, frameHeight, 3);
 		}
-	}
-	else {
-		// Mouse version if Kinect not present.
-		int radius = 60;
-		for (int offsetX = -radius; offsetX < radius; offsetX++) {
-			for (int offsetY = -radius; offsetY < radius; offsetY++) {
-				if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
-					int x = mouseX + offsetX;
-					int y = mouseY + offsetY;
-					if (x >= 0 && x < frameWidth && y >= 0 && y < frameHeight) {
-						blurredPixels[y * frameWidth + x] = min(255, blurredPixels[y * frameWidth + x] + 16);
+		
+		for (int x = 0; x < kinect.width; x++) {
+			for (int y = 0; y < kinect.height; y++) {
+				int i = y * kinect.width + x;
+				int layerIndex = blurredPixels[i] * currSet->layerCount / 256;
+				Layer* layer = &currSet->layers[layerIndex];
+				int frameIndex = ofMap(blurredPixels[i] - 256 * layerIndex / currSet->layerCount, 0, 255 / currSet->layerCount, 0, layer->frameCount - 1);
+				
+				frameIndex += layer->frameOffset;
+				while (frameIndex >= layer->frameCount) frameIndex -= layer->frameCount;
+				
+				for (int c = 0; c < 3; c++) {
+					outputPixels[i * 3 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 3 + i * 3 + c];
+					
+					float d = now - setStartTime;
+					float maskMultiplier = 1;
+					if (d < fadeInDuration) {
+						maskMultiplier = d / fadeInDuration;
+					}
+					else if (autoSetAdvance && d > fadeInDuration + setDuration) {
+						maskMultiplier = (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
+					}
+					outputPixels[i * 3 + c] = outputPixels[i * 3 + c] * maskMultiplier
+					+ maskPixels[i] * (1 - maskMultiplier) * 0.5;
+					
+					// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
+					// as the frame. This will cause problems if their sizes are different. Asserts commented
+					// out for performance.
+					//assert(kinect.width == frameWidth);
+					//assert(kinect.height == frameHeight);
+					if (showGhost && kinect.isConnected() && kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1] > ghostThreshold) {
+						outputPixels[i * 3 + c] = MIN(255, outputPixels[i * 3 + c] + 32);
 					}
 				}
 			}
 		}
-		
-		// FIXME: Should resize at this point. Currently just using kinect dimensions for frame size.
-		assert(kinect.width == frameWidth);
-		assert(kinect.height == frameHeight);
-		fastBlur(blurredPixels, frameWidth, frameHeight, 3);
 	}
-	
-	for (int x = 0; x < kinect.width; x++) {
-		for (int y = 0; y < kinect.height; y++) {
-			int i = y * kinect.width + x;
-			int layerIndex = blurredPixels[i] * currSet->layerCount / 256;
-			Layer* layer = &currSet->layers[layerIndex];
-			int frameIndex = ofMap(blurredPixels[i] - 256 * layerIndex / currSet->layerCount, 0, 255 / currSet->layerCount, 0, layer->frameCount - 1);
-			
-			frameIndex += layer->frameOffset;
-			while (frameIndex >= layer->frameCount) frameIndex -= layer->frameCount;
-			
-			for (int c = 0; c < 4; c++) {
-				outputPixels[i * 4 + c] = layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + c];
-				
-				float d = now - setStartTime;
-				float maskMultiplier = 1;
-				if (d < fadeInDuration) {
-					maskMultiplier = d / fadeInDuration;
-				}
-				else if (autoSetAdvance && d > fadeInDuration + setDuration) {
-					maskMultiplier = (fadeInDuration + setDuration + fadeOutDuration - d) / fadeOutDuration;
-				}
-				outputPixels[i * 4 + c] = outputPixels[i * 4 + c] * maskMultiplier
-				+ maskPixels[i] * (1 - maskMultiplier) * 0.5;
-				
-				// FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
-				// as the frame. This will cause problems if their sizes are different. Asserts commented
-				// out for performance.
-				//assert(kinect.width == frameWidth);
-				//assert(kinect.height == frameHeight);
-				if (showGhost && kinect.isConnected() && kinect.getDepthPixels()[y * kinect.width + kinect.width - x - 1] > ghostThreshold) {
-					outputPixels[i * 4 + c] = MIN(255, outputPixels[i * 4 + c] + 32);
-				}
-			}
-		}
+	else if (!loading) {
+		loader.load(currSet, frameWidth, frameHeight);
+		loading = true;
 	}
 }
 
@@ -197,7 +202,7 @@ void testApp::draw() {
 		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 	}
 	else {
-		drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR_ALPHA);
+		drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
 		drawImage.draw((screenWidth - drawWidth)/2, (screenHeight - drawHeight)/2, drawWidth, drawHeight);
 	}
 		
@@ -213,7 +218,7 @@ void testApp::draw() {
 			Set* set = &sets[setIndex];
 			for (int layerIndex = 0; layerIndex < set->layerCount; layerIndex++) {
 				Layer* layer = &set->layers[layerIndex];
-				bytes += layer->frameCount * frameWidth * frameHeight * 4;
+				bytes += layer->frameCount * frameWidth * frameHeight * 3;
 				totalLayers++;
 			}
 		}
@@ -283,23 +288,6 @@ void testApp::calculateDrawSize() {
 	else {
 		drawWidth = screenWidth;
 		drawHeight = screenWidth / frameAspect;
-	}
-}
-
-void testApp::loadFrames(Layer* layer) {
-	ofFile file;
-	ofImage image;
-
-	for (int frameIndex = 0; frameIndex < layer->frameCount; frameIndex++) {
-		image.loadImage(layer->path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
-		
-		unsigned char* copyPixels = image.getPixels();
-		for (int i = 0; i < frameWidth * frameHeight; i++) {
-			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 0] = copyPixels[i * 3 + 0];
-			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 1] = copyPixels[i * 3 + 1];
-			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 2] = copyPixels[i * 3 + 2];
-			layer->pixels[frameIndex * frameWidth * frameHeight * 4 + i * 4 + 3] = 255;
-		}
 	}
 }
 
@@ -600,7 +588,31 @@ void testApp::mouseReleased(int x, int y, int button) {
 void testApp::windowResized(int w, int h) {
 }
 
-void testApp::gotMessage(ofMessage msg) {}
+void testApp::gotMessage(ofMessage msg) {
+	cout << "gotMessage(" + msg.message + ")" << endl;
+	if (msg.message == "loaded") {
+		loading = false;
+
+		if (setCount > 1) {
+			// Unload the previous set.
+			int prevSetIndex = currSetIndex - 1;
+			if (prevSetIndex < 0) prevSetIndex = setCount - 1;
+			cout << "Unloading set" << ofToString(prevSetIndex + 1, 0, 2, '0') << endl;
+
+			Set* prevSet = &sets[prevSetIndex];
+			for (int layerIndex = 0; layerIndex < prevSet->layerCount; layerIndex++) {
+				delete[] prevSet->layers[layerIndex].pixels;
+				prevSet->layers[layerIndex].pixels = 0;
+			}
+			prevSet->loaded = false;
+
+			int nextSetIndex = currSetIndex + 1;
+			if (nextSetIndex >= setCount) nextSetIndex = 0;
+			cout << "Loading set" << ofToString(nextSetIndex + 1, 0, 2, '0') << endl;
+			loader.load(&sets[nextSetIndex], frameWidth, frameHeight);
+		}
+	}
+}
 
 void testApp::dragEvent(ofDragInfo dragInfo) {
 }
