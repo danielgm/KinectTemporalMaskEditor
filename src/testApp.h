@@ -7,43 +7,9 @@
 #include "time.h"
 #include "vector.h"
 
-/** A layer of frames. */
-struct Layer {
-	int index;
-	string path;
-	int frameCount;
-
-	/** For animation. */
-	int frameOffset;
-
-	// In milliseconds.
-	long previousTime;
-
-	unsigned char* pixels;
-
-	Layer() : pixels(0) {
-	}
-
-	~Layer() {
-		if (pixels) delete[] pixels;
-	}
-};
-
-/** A set of layers. */
-struct Set {
-	int index;
-	string path;
-	int layerCount;
-
-	Layer* layers;
-
-	Set() : layers(0) {
-	}
-
-	~Set() {
-		if (layers) delete[] layers;
-	}
-};
+#include "Layer.h"
+#include "LoadingThread.h"
+#include "Set.h"
 
 class testApp : public ofBaseApp {
 public:
@@ -121,6 +87,9 @@ public:
 	bool showMask;
 	bool showGhost;
 	bool recording;
+	bool loading;
+
+	LoadingThread loader;
 	
 	ofTrueTypeFont hudFont;
 	
