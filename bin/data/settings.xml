@@ -1,0 +1,9 @@
+<settings>
+    <nearThreshold>255</nearThreshold>
+    <farThreshold>158</farThreshold>
+    <ghostThreshold>196</ghostThreshold>
+    <fadeRate>3</fadeRate>
+    <kinectAngle>15.000000000</kinectAngle>
+    <showGhost>1</showGhost>
+    <blurAmount>3</blurAmount>
+</settings>
