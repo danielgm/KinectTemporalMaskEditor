@@ -15,6 +15,8 @@ class ofApp : public ofBaseApp{
     void saveFrame();
     void loadSettings();
     void writeSettings();
+    void loadInputPixels(string path);
+    int countFrames(string path);
 
     void keyPressed(int key);
     void keyReleased(int key);
@@ -30,12 +32,16 @@ private:
   ofxKinect kinect;
   FastBlurrer blurrer;
 
+  int frameCount;
+  int frameWidth;
+  int frameHeight;
+
   int nearThreshold;
   int farThreshold;
-	int ghostThreshold;
+  int ghostThreshold;
   int fadeRate;
 
-	float kinectAngle;
+  float kinectAngle;
 
   /** Write kinect output to fading mask. kinect.width x kinect.height x 1 **/
   unsigned char* maskPixels;
@@ -43,21 +49,24 @@ private:
   /** Write kinect to this resized image and blur. frameWidth x frameHeight x 1 */
   unsigned char* blurredPixels;
 
+  /** Pixels of frames from the input movie clip. frameWidth x frameHeight x 3 x numFrames */
+  unsigned char* inputPixels;
+
   /** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
   unsigned char* outputPixels;
 
   ofImage drawImage;
 
-	bool showHud;
-	bool showMask;
-	bool showGhost;
-	bool recording;
-	bool loading;
+  bool showHud;
+  bool showMask;
+  bool showGhost;
+  bool recording;
+  bool loading;
 
   ofTrueTypeFont hudFont;
 
-	string recordingPath;
-	int recordingImageIndex;
+  string recordingPath;
+  int recordingImageIndex;
 
   int blurAmount;
 };
