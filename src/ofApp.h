@@ -32,6 +32,9 @@ private:
   ofxKinect kinect;
   FastBlurrer blurrer;
 
+  int screenWidth;
+  int screenHeight;
+
   int frameCount;
   int frameWidth;
   int frameHeight;
@@ -52,7 +55,7 @@ private:
   /** Pixels of frames from the input movie clip. frameWidth x frameHeight x 3 x numFrames */
   unsigned char* inputPixels;
 
-  /** Use blurred mask to select input pixels. frameWidth x frameHeight x 4 */
+  /** Use blurred mask to select input pixels. frameWidth x frameHeight x 3 */
   unsigned char* outputPixels;
 
   ofImage drawImage;

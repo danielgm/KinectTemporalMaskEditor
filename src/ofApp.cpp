@@ -3,6 +3,9 @@
 void ofApp::setup() {
   ofSetLogLevel(OF_LOG_VERBOSE);
 
+  screenWidth = ofGetWindowWidth();
+  screenHeight = ofGetWindowHeight();
+
   loadSettings();
 
   hudFont.loadFont("verdana.ttf", 12);
@@ -28,6 +31,7 @@ void ofApp::setup() {
 }
 
 void ofApp::update() {
+  bool isFrameNew = false;
   if (kinect.isConnected()) {
     kinect.update();
     if (kinect.isFrameNew()) {
@@ -43,23 +47,47 @@ void ofApp::update() {
           blurredPixels[i] = maskPixels[i] = k > m ? k : m;
         }
       }
-
-      blurrer.blur(blurredPixels);
-
-      for (int i = 0; i < frameWidth * frameHeight; i++) {
-        int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
-
-        for (int c = 0; c < 3; c++) {
-          outputPixels[i * 3 + c] = inputPixels[frameIndex * frameWidth * frameHeight * 3 + i * 4 + c] + maskPixels[i] / 52;
-
-          // FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
-          // as the frame. This will cause problems if their sizes are different. Asserts commented
-          // out for performance.
-          //assert(kinect.width == frameWidth);
-          //assert(kinect.height == frameHeight);
-          if (showGhost && maskPixels[i] > ghostThreshold) {
-            outputPixels[i * 3 + c] = MIN(255, outputPixels[i * 3 + c] + 32);
+      isFrameNew = true;
+    }
+  }
+  else {
+    // Mouse version if Kinect not present.
+    int radius = 60;
+    for (int offsetX = -radius; offsetX < radius; offsetX++) {
+      for (int offsetY = -radius; offsetY < radius; offsetY++) {
+        if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
+          int x = floor((float)mouseX * frameWidth / screenWidth + offsetX);
+          int y = floor((float)mouseY * frameHeight / screenHeight + offsetY);
+          int i = y * frameWidth + x;
+          if (x >= 0 && x < frameWidth && y >= 0 && y < frameHeight) {
+            blurredPixels[i] = maskPixels[i] = min(255, blurredPixels[i] + 16);
           }
+        }
+      }
+    }
+
+    for (int i = 0; i < frameWidth * frameHeight; i++) {
+      blurredPixels[i] = MAX(0, blurredPixels[i] - fadeRate);
+    }
+    isFrameNew = true;
+  }
+
+  if (isFrameNew) {
+    blurrer.blur(blurredPixels);
+
+    for (int i = 0; i < frameWidth * frameHeight; i++) {
+      int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+
+      for (int c = 0; c < 3; c++) {
+        outputPixels[i * 3 + c] = MIN(255, inputPixels[frameIndex * frameWidth * frameHeight * 3 + i * 3 + c] + maskPixels[i] / 52);
+
+        // FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
+        // as the frame. This will cause problems if their sizes are different. Asserts commented
+        // out for performance.
+        //assert(kinect.width == frameWidth);
+        //assert(kinect.height == frameHeight);
+        if (showGhost && maskPixels[i] > ghostThreshold) {
+          outputPixels[i * 3 + c] = MIN(255, outputPixels[i * 3 + c] + 32);
         }
       }
     }
@@ -75,7 +103,8 @@ void ofApp::draw() {
   else {
     drawImage.setFromPixels(outputPixels, kinect.width, kinect.height, OF_IMAGE_COLOR);
   }
-  drawImage.draw(0, 0, ofGetScreenWidth(), ofGetScreenHeight());
+  drawImage.draw(0, 0, screenWidth, screenHeight);
+  //drawImage.draw(0, 0);
 
   stringstream ss;
   ss << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
