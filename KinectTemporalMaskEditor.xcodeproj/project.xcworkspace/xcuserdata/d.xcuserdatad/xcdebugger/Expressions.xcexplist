@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "ofApp::loadInputPixels(std::string):ofApp.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "image.height">
+            </PersistentString>
+            <PersistentString
+               value = "image.type">
+            </PersistentString>
+            <PersistentString
+               value = "imagePixels[i]">
+            </PersistentString>
+            <PersistentString
+               value = "frameIndex">
+            </PersistentString>
+            <PersistentString
+               value = "image.width">
+            </PersistentString>
+            <PersistentString
+               value = "inputPixels[frameIndex * frameWidth * frameHeight * 3 + i]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>

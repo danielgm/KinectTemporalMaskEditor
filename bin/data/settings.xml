@@ -2,7 +2,7 @@
     <nearThreshold>255</nearThreshold>
     <farThreshold>158</farThreshold>
     <ghostThreshold>196</ghostThreshold>
-    <fadeRate>2</fadeRate>
+    <fadeRate>1</fadeRate>
     <kinectAngle>15.000000000</kinectAngle>
     <showGhost>0</showGhost>
     <blurAmount>3</blurAmount>

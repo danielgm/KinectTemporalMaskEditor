@@ -18,11 +18,13 @@ void ofApp::setup() {
 
   blurrer.init(kinect.width, kinect.height, 5);
 
-  loadInputPixels("falcon");
-
+  inputPixels = NULL;
   maskPixels = new unsigned char[kinect.width * kinect.height * 1];
   blurredPixels = new unsigned char[kinect.width * kinect.height * 3];
   outputPixels = new unsigned char[kinect.width * kinect.height * 3];
+
+  //loadInputPixels("falcon");
+  loadInputPixels("adam_magyar_stainless01");
 
   // Start the mask off black.
   for (int i = 0; i < kinect.width * kinect.height; i++) {
@@ -52,7 +54,7 @@ void ofApp::update() {
   }
   else {
     // Mouse version if Kinect not present.
-    int radius = 60;
+    int radius = 150;
     for (int offsetX = -radius; offsetX < radius; offsetX++) {
       for (int offsetY = -radius; offsetY < radius; offsetY++) {
         if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
@@ -104,7 +106,6 @@ void ofApp::draw() {
     drawImage.setFromPixels(outputPixels, kinect.width, kinect.height, OF_IMAGE_COLOR);
   }
   drawImage.draw(0, 0, screenWidth, screenHeight);
-  //drawImage.draw(0, 0);
 
   stringstream ss;
   ss << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
@@ -154,24 +155,39 @@ void ofApp::writeSettings() {
 void ofApp::loadInputPixels(string path) {
   ofImage image;
   frameCount = countFrames(path);
+
   // FIXME: Handle different frame sizes.
   frameWidth = 640;
   frameHeight = 480;
+
+  cout << "Loading " << frameCount << " frames " << endl
+    << "Path: " << path << endl
+    << "Dimensions: " << frameWidth << "x" << frameHeight << endl
+    << "Size: " << floor(frameCount * frameWidth * frameHeight * 3 / 1024 / 1024) << " MB" << endl;
+
+  if (inputPixels != NULL) {
+    delete[] inputPixels;
+    inputPixels = NULL;
+  }
+
   inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
   for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
     image.loadImage(path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
+    image.setImageType(OF_IMAGE_COLOR);
 
     for (int i = 0; i < frameWidth * frameHeight * 3; i++) {
       inputPixels[frameIndex * frameWidth * frameHeight * 3 + i] = image.getPixels()[i];
     }
   }
+
+  cout << "Loading complete." << endl;
 }
 
 int ofApp::countFrames(string path) {
-	int n = 0;
-	ofFile file;
-	while (file.doesFileExist(path + "/frame" + ofToString(n + 1, 0, 4, '0') + ".png")) n++;
-	return n;
+  int n = 0;
+  ofFile file;
+  while (file.doesFileExist(path + "/frame" + ofToString(n + 1, 0, 4, '0') + ".png")) n++;
+  return n;
 }
 
 void ofApp::keyPressed(int key) {
