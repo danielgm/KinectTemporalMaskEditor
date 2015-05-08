@@ -10,26 +10,34 @@ void ofApp::setup() {
 
   hudFont.loadFont("verdana.ttf", 12);
 
-  kinect.init(true, false, false);
+  kinect.init(false, true, false);
   kinect.open();
 
   ofSetFrameRate(60);
   kinect.setCameraTiltAngle(0);
 
-  blurrer.init(kinect.width, kinect.height, 5);
+  frameCount = 100;
+  frameWidth = kinect.width;
+  frameHeight = kinect.height;
 
-  inputPixels = NULL;
-  maskPixels = new unsigned char[kinect.width * kinect.height * 1];
-  blurredPixels = new unsigned char[kinect.width * kinect.height * 3];
-  outputPixels = new unsigned char[kinect.width * kinect.height * 3];
+  blurrer.init(frameWidth, frameHeight, 5);
 
-  //loadInputPixels("falcon");
-  loadInputPixels("adam_magyar_stainless01");
+  inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
+  maskPixels = new unsigned char[frameWidth * frameHeight * 1];
+  blurredPixels = new unsigned char[frameWidth * frameHeight * 3];
+  outputPixels = new unsigned char[frameWidth * frameHeight * 3];
 
   // Start the mask off black.
-  for (int i = 0; i < kinect.width * kinect.height; i++) {
+  for (int i = 0; i < frameWidth * frameHeight; i++) {
     maskPixels[i] = 0;
   }
+
+  // Start the input off black.
+  for (int i = 0; i < frameCount * frameWidth * frameHeight * 3; i++) {
+    inputPixels[i] = 0;
+  }
+
+  inputPixelsStartIndex = -1;
 }
 
 void ofApp::update() {
@@ -37,13 +45,19 @@ void ofApp::update() {
   if (kinect.isConnected()) {
     kinect.update();
     if (kinect.isFrameNew()) {
+      if (++inputPixelsStartIndex >= frameCount) inputPixelsStartIndex = 0;
+
       // Write Kinect depth map pixels to the mask and fade.
-      int w = kinect.width;
-      int h = kinect.height;
+      int w = frameWidth;
+      int h = frameHeight;
+
+      unsigned char* p = inputPixels + inputPixelsStartIndex * w * h * 3;
+      memcpy(p, kinect.getPixels(), w * h * 3);
+
       for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
           int i = y * w + x;
-          unsigned char k = kinect.getDepthPixels()[y * w + w - x - 1];
+          unsigned char k = kinect.getDepthPixels()[i];
           unsigned char m = MAX(0, maskPixels[i] - fadeRate);
           k = ofMap(CLAMP(k, farThreshold, nearThreshold), farThreshold, nearThreshold, 0, 255);
           blurredPixels[i] = maskPixels[i] = k > m ? k : m;
@@ -52,45 +66,16 @@ void ofApp::update() {
       isFrameNew = true;
     }
   }
-  else {
-    // Mouse version if Kinect not present.
-    int radius = 150;
-    for (int offsetX = -radius; offsetX < radius; offsetX++) {
-      for (int offsetY = -radius; offsetY < radius; offsetY++) {
-        if (sqrt(offsetX * offsetX + offsetY * offsetY) < radius) {
-          int x = floor((float)mouseX * frameWidth / screenWidth + offsetX);
-          int y = floor((float)mouseY * frameHeight / screenHeight + offsetY);
-          int i = y * frameWidth + x;
-          if (x >= 0 && x < frameWidth && y >= 0 && y < frameHeight) {
-            blurredPixels[i] = maskPixels[i] = min(255, blurredPixels[i] + 16);
-          }
-        }
-      }
-    }
-
-    for (int i = 0; i < frameWidth * frameHeight; i++) {
-      blurredPixels[i] = MAX(0, blurredPixels[i] - fadeRate);
-    }
-    isFrameNew = true;
-  }
 
   if (isFrameNew) {
     blurrer.blur(blurredPixels);
 
     for (int i = 0; i < frameWidth * frameHeight; i++) {
-      int frameIndex = ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+      int frameIndex = inputPixelsStartIndex + ofMap(blurredPixels[i], 0, 255, 0, frameCount - 1);
+      if (frameIndex >= frameCount) frameIndex -= frameCount;
 
       for (int c = 0; c < 3; c++) {
         outputPixels[i * 3 + c] = MIN(255, inputPixels[frameIndex * frameWidth * frameHeight * 3 + i * 3 + c] + maskPixels[i] / 52);
-
-        // FIXME: When showing ghost, the kinect pixels get referenced at the same dimensions
-        // as the frame. This will cause problems if their sizes are different. Asserts commented
-        // out for performance.
-        //assert(kinect.width == frameWidth);
-        //assert(kinect.height == frameHeight);
-        if (showGhost && maskPixels[i] > ghostThreshold) {
-          outputPixels[i * 3 + c] = MIN(255, outputPixels[i * 3 + c] + 32);
-        }
       }
     }
   }
@@ -100,18 +85,17 @@ void ofApp::draw() {
   ofBackground(0);
   ofSetColor(255, 255, 255);
   if (showMask) {
-    drawImage.setFromPixels(blurredPixels, kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+    drawImage.setFromPixels(blurredPixels, frameWidth, frameHeight, OF_IMAGE_GRAYSCALE);
   }
   else {
-    drawImage.setFromPixels(outputPixels, kinect.width, kinect.height, OF_IMAGE_COLOR);
+    drawImage.setFromPixels(outputPixels, frameWidth, frameHeight, OF_IMAGE_COLOR);
   }
-  drawImage.draw(0, 0, screenWidth, screenHeight);
+  drawImage.draw(screenWidth, 0, -screenWidth, screenHeight);
 
   stringstream ss;
   ss << "Frame rate: " << ofToString(ofGetFrameRate(), 2) << endl
     //<< "Frame size: " << frameWidth << 'x' << frameHeight << endl
     //<< "Memory: " << floor(bytes / 1024 / 1024) << " MB" << endl
-    << "(G) Ghost: " << (showGhost ? "on" : "off") << endl
     << "(T) Display: " << (showMask ? "mask" : "output") << endl
     << "(J/K) Mask fade rate: " << fadeRate << endl
     << "(N/B) Near threshold: " << nearThreshold << endl
@@ -133,10 +117,8 @@ void ofApp::loadSettings() {
   settings.loadFile("settings.xml");
   nearThreshold = settings.getValue("settings:nearThreshold", 255);
   farThreshold = settings.getValue("settings:farThreshold", 64);
-  ghostThreshold = settings.getValue("settings:ghostThreshold", 196);
   fadeRate = settings.getValue("settings:fadeRate", 3);
   kinectAngle = settings.getValue("settings:kinectAngle", 15);
-  showGhost = settings.getValue("settings:showGhost", true);
   blurAmount = settings.getValue("settings:blurAmount", 3);
 }
 
@@ -144,50 +126,10 @@ void ofApp::writeSettings() {
   ofxXmlSettings settings;
   settings.setValue("settings:nearThreshold", nearThreshold);
   settings.setValue("settings:farThreshold", farThreshold);
-  settings.setValue("settings:ghostThreshold", ghostThreshold);
   settings.setValue("settings:fadeRate", fadeRate);
   settings.setValue("settings:kinectAngle", kinectAngle);
-  settings.setValue("settings:showGhost", showGhost);
   settings.setValue("settings:blurAmount", blurAmount);
   settings.saveFile("settings.xml");
-}
-
-void ofApp::loadInputPixels(string path) {
-  ofImage image;
-  frameCount = countFrames(path);
-
-  // FIXME: Handle different frame sizes.
-  frameWidth = 640;
-  frameHeight = 480;
-
-  cout << "Loading " << frameCount << " frames " << endl
-    << "Path: " << path << endl
-    << "Dimensions: " << frameWidth << "x" << frameHeight << endl
-    << "Size: " << floor(frameCount * frameWidth * frameHeight * 3 / 1024 / 1024) << " MB" << endl;
-
-  if (inputPixels != NULL) {
-    delete[] inputPixels;
-    inputPixels = NULL;
-  }
-
-  inputPixels = new unsigned char[frameCount * frameWidth * frameHeight * 3];
-  for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-    image.loadImage(path + "/frame" + ofToString(frameIndex + 1, 0, 4, '0') + ".png");
-    image.setImageType(OF_IMAGE_COLOR);
-
-    for (int i = 0; i < frameWidth * frameHeight * 3; i++) {
-      inputPixels[frameIndex * frameWidth * frameHeight * 3 + i] = image.getPixels()[i];
-    }
-  }
-
-  cout << "Loading complete." << endl;
-}
-
-int ofApp::countFrames(string path) {
-  int n = 0;
-  ofFile file;
-  while (file.doesFileExist(path + "/frame" + ofToString(n + 1, 0, 4, '0') + ".png")) n++;
-  return n;
 }
 
 void ofApp::keyPressed(int key) {
@@ -201,11 +143,6 @@ void ofApp::keyReleased(int key) {
 
     case 'r':
       saveFrame();
-      break;
-
-    case 'g':
-      showGhost = !showGhost;
-      writeSettings();
       break;
 
     case 't':

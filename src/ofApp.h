@@ -15,8 +15,6 @@ class ofApp : public ofBaseApp{
     void saveFrame();
     void loadSettings();
     void writeSettings();
-    void loadInputPixels(string path);
-    int countFrames(string path);
 
     void keyPressed(int key);
     void keyReleased(int key);
@@ -41,7 +39,6 @@ private:
 
   int nearThreshold;
   int farThreshold;
-  int ghostThreshold;
   int fadeRate;
 
   float kinectAngle;
@@ -58,11 +55,12 @@ private:
   /** Use blurred mask to select input pixels. frameWidth x frameHeight x 3 */
   unsigned char* outputPixels;
 
+  int inputPixelsStartIndex;
+
   ofImage drawImage;
 
   bool showHud;
   bool showMask;
-  bool showGhost;
   bool recording;
   bool loading;
 
